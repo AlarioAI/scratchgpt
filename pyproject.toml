@@ -9,6 +9,8 @@ readme = "README.md"
 python = "^3.12"
 torch = "^2.4"
 tqdm = "^4.66"
+ptflops = "0.7"
+numpy = "2.1"
 
 [build-system]
 requires = ["poetry-core"]

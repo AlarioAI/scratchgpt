@@ -1,0 +1,4 @@
+data/
+karpathy*
+__pycache__
+*.pyc

@@ -15,7 +15,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 import torch
 
-from scratchgpt.tokenizer.char_tokenizer import CharTokenizer
+from scratchgpt.tokenizer.char_tokenizer import Utf8Tokenizer
 from scratchgpt.tokenizer.tiktoken import TiktokenWrapper
 from .metering import AverageValueMeter
 from .dataloader import TextDataset
@@ -25,7 +25,7 @@ torch.manual_seed(1337)
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 BATCH_SIZE = 256
-BLOCK_SIZE = 64
+BLOCK_SIZE = 32
 MAX_EPOCHS = 5
 LEARNING_RATE = 3e-3
 EVAL_INTERVAL = 500
@@ -237,7 +237,7 @@ def main():
 
     text = load_dataset(args.train_file)
 
-    tokenizer = TiktokenWrapper()
+    tokenizer = TiktokenWrapper("cl100k_base")
 
     train_dataset = TextDataset(text, tokenizer, BLOCK_SIZE, "train", 0.9)
     val_dataset = TextDataset(text, tokenizer, BLOCK_SIZE, "validation", 0.1)
@@ -285,7 +285,8 @@ def main():
     except KeyboardInterrupt:
         print("Trying my best here")
 
-    context = torch.zeros((1,1), dtype=torch.long).to(DEVICE)
+    prompt = input("Tell me your prompt: ")
+    context = torch.tensor(tokenizer.encode(prompt)).unsqueeze(0).to(DEVICE)
     generated = model.generate(context, max_new_tokens=500)
     first_batch_trained = tokenizer.decode(generated[0].tolist())
     print(first_batch_trained)

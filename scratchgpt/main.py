@@ -1,13 +1,14 @@
 import argparse
 import io
 import math
+import os
 from random import randint
 import sys
 import multiprocessing as mp
 from typing import Literal
 
 from ptflops import get_model_complexity_info
-from torch import Tensor, nn
+from torch import Tensor, exp, nn
 from torch.nn import functional as F
 from torch.optim.adamw import AdamW
 from torch.optim.optimizer import Optimizer
@@ -34,6 +35,10 @@ NUM_HEADS = 4
 NUM_BLOCKS = 4
 
 
+class ModelLoadFailed(Exception):
+    pass
+
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("-t",
@@ -41,6 +46,11 @@ def parse_args():
                         help="The file you want to train on",
                         required=True,
                         type=argparse.FileType("r"))
+    parser.add_argument("-e",
+                        "--experiment",
+                        help="The path to the folder where to save experiment checkpoints",
+                        required=True,
+                        type=str)
     return parser.parse_args()
 
 
@@ -133,7 +143,7 @@ class Block(nn.Module):
         return tensor
 
 
-class BigramLanguageModel(nn.Module):
+class TransformerLanguageModel(nn.Module):
 
     def __init__(self, num_heads: int, vocab_size: int, embedding_size: int, block_size: int, num_blocks: int,) -> None:
         super().__init__()
@@ -231,6 +241,26 @@ def run_epoch(
     return average_loss.value()
 
 
+def get_best_model_weights_path(exp_folder: str) -> str:
+    return os.path.join(exp_folder, "best_model_weights.pth")
+
+
+def get_latest_model_weights_path(exp_folder: str) -> str:
+    return os.path.join(exp_folder, "latest_model_weights.pth")
+
+
+def load_model(model_path: str, model: nn.Module) -> None:
+    if os.path.exists(model_path):
+        try:
+            print(f"Loading weights from: {model_path}")
+            model_dict = torch.load(model_path, map_location=DEVICE)
+            model.load_state_dict(model_dict)
+        except Exception:
+            raise ModelLoadFailed(model_path)
+    else:
+        print("No model path exists, proceeding with a new model")
+ 
+
 def main():
     args = parse_args()
     print(f"Using the device: {DEVICE}")
@@ -255,10 +285,21 @@ def main():
                                 shuffle=False)
 
 
-    model = BigramLanguageModel(NUM_HEADS, tokenizer.vocab_size, N_EMBED, BLOCK_SIZE, NUM_BLOCKS)
+    best_model_path = get_best_model_weights_path(args.experiment)
+    latest_model_path = get_latest_model_weights_path(args.experiment)
+
+    model = TransformerLanguageModel(NUM_HEADS, tokenizer.vocab_size, N_EMBED, BLOCK_SIZE, NUM_BLOCKS)
+    load_model(best_model_path, model)
+
     model = model.to(DEVICE)
+
     print_model_complexity(model)
     optimizer = AdamW(model.parameters(), lr=LEARNING_RATE)
+
+    best_val_loss = float("inf")
+
+    if not os.path.exists(args.experiment):
+        os.makedirs(args.experiment, exist_ok=True)
 
     try:
         for epoch in range(MAX_EPOCHS):
@@ -281,8 +322,16 @@ def main():
             )
             print(f"Validation Loss: {val_loss_mean:.4f} ± {val_loss_std:.4f}")
 
+            torch.save(model.state_dict(), latest_model_path)
+
+            if val_loss_mean < best_val_loss:
+                best_val_loss = val_loss_mean
+                print(f"Saving new best model @ {best_model_path} with validation loss: {val_loss_mean:.4f}")
+                torch.save(model.state_dict(), best_model_path)
+
             print()
     except KeyboardInterrupt:
+        torch.save(model.state_dict(), latest_model_path)
         print("Trying my best here")
 
     prompt = input("Tell me your prompt: ")

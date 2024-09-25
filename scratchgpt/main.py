@@ -5,18 +5,23 @@ import sys
 from typing import Literal
 
 from ptflops import get_model_complexity_info
+import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
 from torch.optim.adamw import AdamW
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-import torch
 
-from .model_io import get_best_model_weights_path, get_latest_model_weights_path, get_tokenizer, load_model, save_tokenizer
-from .metering import AverageValueMeter
 from .dataloader import FileTextProvider, FolderTextProvider, TextDataset, TextProvider
-
+from .metering import AverageValueMeter
+from .model_io import (
+    get_best_model_weights_path,
+    get_latest_model_weights_path,
+    get_tokenizer,
+    load_model,
+    save_tokenizer,
+)
 
 torch.manual_seed(1337)
 
@@ -32,16 +37,14 @@ NUM_BLOCKS = 6
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-t",
-                        "--train_source",
-                        help="The file you want to train on",
-                        required=True,
-                        type=str)
-    parser.add_argument("-e",
-                        "--experiment",
-                        help="The path to the folder where to save experiment checkpoints",
-                        required=True,
-                        type=str)
+    parser.add_argument("-t", "--train_source", help="The file you want to train on", required=True, type=str)
+    parser.add_argument(
+        "-e",
+        "--experiment",
+        help="The path to the folder where to save experiment checkpoints",
+        required=True,
+        type=str,
+    )
     return parser.parse_args()
 
 
@@ -61,7 +64,7 @@ class Head(nn.Module):
         self._key = nn.Linear(embedding_size, head_size, bias=False)
         self._query = nn.Linear(embedding_size, head_size, bias=False)
         self._value = nn.Linear(embedding_size, head_size, bias=False)
-        self._dropout_factor = .2
+        self._dropout_factor = 0.2
         self._dropout = nn.Dropout(self._dropout_factor)
         self.register_buffer("tril", torch.tril(torch.ones(block_size, block_size)))
 
@@ -86,7 +89,7 @@ class Head(nn.Module):
 class MultiHeadAttention(nn.Module):
     def __init__(self, num_heads: int, embedding_size: int, block_size: int, head_size: int) -> None:
         super().__init__()
-        self._dropout_factor = .2
+        self._dropout_factor = 0.2
         self._heads = nn.ModuleList(Head(embedding_size, block_size, head_size) for _ in range(num_heads))
         self._proj = nn.Linear(embedding_size, embedding_size)
         self._dropout = nn.Dropout(self._dropout_factor)
@@ -102,13 +105,13 @@ class FeedFoward(nn.Module):
     def __init__(self, embedding_size: int) -> None:
         super().__init__()
         self._ffwd_multipler = 4
-        self._dropout = .2
+        self._dropout = 0.2
 
         self._net = nn.Sequential(
             nn.Linear(embedding_size, embedding_size * self._ffwd_multipler),
             nn.ReLU(),
             nn.Linear(self._ffwd_multipler * embedding_size, embedding_size),
-            nn.Dropout(self._dropout)
+            nn.Dropout(self._dropout),
         )
 
     def forward(self, tensor: Tensor) -> Tensor:
@@ -116,7 +119,12 @@ class FeedFoward(nn.Module):
 
 
 class Block(nn.Module):
-    def __init__(self, num_heads: int, embedding_size: int, block_size: int,) -> None:
+    def __init__(
+        self,
+        num_heads: int,
+        embedding_size: int,
+        block_size: int,
+    ) -> None:
         super().__init__()
         head_size = embedding_size // num_heads
         self._self_attn_heads = MultiHeadAttention(num_heads, embedding_size, block_size, head_size)
@@ -136,7 +144,14 @@ class Block(nn.Module):
 
 class TransformerLanguageModel(nn.Module):
 
-    def __init__(self, num_heads: int, vocab_size: int, embedding_size: int, block_size: int, num_blocks: int,) -> None:
+    def __init__(
+        self,
+        num_heads: int,
+        vocab_size: int,
+        embedding_size: int,
+        block_size: int,
+        num_blocks: int,
+    ) -> None:
         super().__init__()
         self._block_size = block_size
         self._token_embedding_table = nn.Embedding(vocab_size, embedding_size)
@@ -145,32 +160,32 @@ class TransformerLanguageModel(nn.Module):
         self._block_norm = nn.LayerNorm(embedding_size)
         self._lm_head = nn.Linear(embedding_size, vocab_size)
 
-    def forward(self, context: Tensor, targets: Tensor|None = None) -> tuple[Tensor, Tensor]:
+    def forward(self, context: Tensor, targets: Tensor | None = None) -> tuple[Tensor, Tensor]:
         context = context.long()
         B, T = context.shape
 
-        tok_emb = self._token_embedding_table(context) # B, T, C
-        pos_emb = self._position_embedding_table(torch.arange(T, device=DEVICE)) # (T, C)
-        x = tok_emb + pos_emb # B, T, C
+        tok_emb = self._token_embedding_table(context)  # B, T, C
+        pos_emb = self._position_embedding_table(torch.arange(T, device=DEVICE))  # (T, C)
+        x = tok_emb + pos_emb  # B, T, C
         x = self._blocks(x)
         x = self._block_norm(x)
-        logits = self._lm_head(x) # (B, T, vocab_size)
+        logits = self._lm_head(x)  # (B, T, vocab_size)
 
         if targets is None:
             loss = torch.empty(0)
         else:
             B, T, C = logits.shape
-            logits = logits.view(B*T, C)
-            targets = targets.view(B*T)
+            logits = logits.view(B * T, C)
+            targets = targets.view(B * T)
             loss = F.cross_entropy(logits, targets)
 
         return logits, loss
 
     def generate(self, context: Tensor, max_new_tokens: int) -> Tensor:
         for _ in range(max_new_tokens):
-            cropped_context = context[:, -self._block_size:]
+            cropped_context = context[:, -self._block_size :]
             logits, _loss = self(cropped_context)
-            logits = logits[:, -1, :] # becomes (B, C)
+            logits = logits[:, -1, :]  # becomes (B, C)
             probs = F.softmax(logits, dim=-1)
             idx_next = torch.multinomial(probs, num_samples=1)
             context = torch.cat((context, idx_next), dim=1)
@@ -181,7 +196,7 @@ def run_epoch(
     model: torch.nn.Module,
     dataloader: DataLoader,
     device: torch.device,
-    stage: Literal['train', 'validation', 'test'],
+    stage: Literal["train", "validation", "test"],
     optimizer: Optimizer | None = None,
 ) -> tuple[float, float]:
     """
@@ -199,7 +214,7 @@ def run_epoch(
     """
     average_loss = AverageValueMeter()
 
-    is_train = stage == 'train'
+    is_train = stage == "train"
     model.train(is_train)
 
     pbar = tqdm(total=len(dataloader), desc=stage.capitalize(), file=sys.stdout)
@@ -247,18 +262,11 @@ def main():
 
     cpu_count = os.cpu_count()
     assert cpu_count is not None
-    train_dataloader = DataLoader(train_dataset,
-                                  BATCH_SIZE,
-                                  pin_memory=True,
-                                  num_workers=int(cpu_count / 2),
-                                  shuffle=True)
+    train_dataloader = DataLoader(
+        train_dataset, BATCH_SIZE, pin_memory=True, num_workers=int(cpu_count / 2), shuffle=True
+    )
 
-    val_dataloader = DataLoader(val_dataset,
-                                BATCH_SIZE,
-                                pin_memory=True,
-                                num_workers=int(cpu_count / 2),
-                                shuffle=False)
-
+    val_dataloader = DataLoader(val_dataset, BATCH_SIZE, pin_memory=True, num_workers=int(cpu_count / 2), shuffle=False)
 
     best_model_path = get_best_model_weights_path(args.experiment)
     latest_model_path = get_latest_model_weights_path(args.experiment)
@@ -281,20 +289,13 @@ def main():
             print(f"Epoch {epoch + 1}/{MAX_EPOCHS}")
 
             train_loss_mean, train_loss_std = run_epoch(
-                model=model,
-                dataloader=train_dataloader,
-                device=DEVICE,
-                stage='train',
-                optimizer=optimizer
+                model=model, dataloader=train_dataloader, device=DEVICE, stage="train", optimizer=optimizer
             )
             print(f"Training Loss: {train_loss_mean:.4f} ± {train_loss_std:.4f}")
             torch.save(model.state_dict(), latest_model_path)
 
             val_loss_mean, val_loss_std = run_epoch(
-                model=model,
-                dataloader=val_dataloader,
-                device=DEVICE,
-                stage='validation'
+                model=model, dataloader=val_dataloader, device=DEVICE, stage="validation"
             )
             print(f"Validation Loss: {val_loss_mean:.4f} ± {val_loss_std:.4f}")
 

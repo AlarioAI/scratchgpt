@@ -35,7 +35,7 @@ def load_model(model_path: str, model: nn.Module, device: torch.device) -> None:
             raise ModelLoadFailed(model_path)
     else:
         print("No model path exists, proceeding with a new model")
- 
+
 
 def get_tokenizer(exp_path: str) -> Tokenizer:
     tokenizer_path = get_tokenizer_path(exp_path)

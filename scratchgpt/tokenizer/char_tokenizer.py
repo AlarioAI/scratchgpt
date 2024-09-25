@@ -1,4 +1,5 @@
 from typing import Any, override
+
 from .base_tokenizer import Tokenizer
 
 
@@ -8,7 +9,7 @@ def get_vocab(text: str) -> list[str]:
 
 
 def str_to_int(chars: list[str]) -> dict[str, int]:
-    return {char:idx for idx, char in enumerate(chars)}
+    return {char: idx for idx, char in enumerate(chars)}
 
 
 def int_to_str(chars: list[str]) -> dict[int, str]:
@@ -37,8 +38,11 @@ class CharTokenizer(Tokenizer):
         return [self._encoding_mapping[char] for char in text]
 
     @override
-    def decode(self, encoding: list[int],) -> str:
-        return ''.join(self._decoding_mapping[v] for v in encoding)
+    def decode(
+        self,
+        encoding: list[int],
+    ) -> str:
+        return "".join(self._decoding_mapping[v] for v in encoding)
 
 
 class Utf8Tokenizer(Tokenizer):
@@ -58,9 +62,12 @@ class Utf8Tokenizer(Tokenizer):
 
     @override
     def encode(self, text: str) -> list[int]:
-        return list(text.encode('utf-8'))
+        return list(text.encode("utf-8"))
 
     @override
-    def decode(self, encoding: list[int],) -> str:
+    def decode(
+        self,
+        encoding: list[int],
+    ) -> str:
         bs = bytes(encoding)
-        return ''.join(bs.decode('utf-8'))
+        return "".join(bs.decode("utf-8"))

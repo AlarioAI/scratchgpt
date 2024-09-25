@@ -1,12 +1,10 @@
 import argparse
-
 import sys
+
 import torch
 
 from .main import TransformerLanguageModel
-from .model_io import get_best_model_weights_path, load_model
-from .model_io import get_tokenizer
-
+from .model_io import get_best_model_weights_path, get_tokenizer, load_model
 
 BATCH_SIZE = 32
 BLOCK_SIZE = 256
@@ -19,21 +17,27 @@ NUM_BLOCKS = 6
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-d",
-                        "--device",
-                        help="What hardware you want to run the model on",
-                        default="cuda",
-                        choices=["cuda", "cpu"])
-    parser.add_argument("-e",
-                        "--experiment",
-                        help="The path to the folder where to save experiment checkpoints",
-                        required=True,
-                        type=str)
-    parser.add_argument("-m",
-                        "--max_tokens",
-                        type=int,
-                        default=BLOCK_SIZE * 2,
-                        help="Number of tokens you want the model produce")
+    parser.add_argument(
+        "-d",
+        "--device",
+        help="What hardware you want to run the model on",
+        default="cuda",
+        choices=["cuda", "cpu"],
+    )
+    parser.add_argument(
+        "-e",
+        "--experiment",
+        help="The path to the folder where to save experiment checkpoints",
+        required=True,
+        type=str,
+    )
+    parser.add_argument(
+        "-m",
+        "--max_tokens",
+        type=int,
+        default=BLOCK_SIZE * 2,
+        help="Number of tokens you want the model produce",
+    )
     return parser.parse_args()
 
 

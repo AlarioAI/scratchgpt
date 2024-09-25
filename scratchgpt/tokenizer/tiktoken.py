@@ -1,8 +1,9 @@
-from typing import override
-from .base_tokenizer import Tokenizer
 from functools import lru_cache
+from typing import override
 
 import tiktoken
+
+from .base_tokenizer import Tokenizer
 
 
 class TiktokenWrapper(Tokenizer):

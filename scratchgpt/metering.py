@@ -1,8 +1,6 @@
+from abc import ABC, abstractmethod
+
 import numpy as np
-from abc import (
-    ABC,
-    abstractmethod
-)
 
 
 class Meter(ABC):
@@ -23,7 +21,7 @@ class AverageValueMeter(Meter):
     def __init__(self) -> None:
         super(AverageValueMeter, self).__init__()
         self.reset()
-        self.val: float = 0.
+        self.val: float = 0.0
 
     def add(self, value: float, n: int = 1) -> None:
         self.val = value

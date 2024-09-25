@@ -30,6 +30,7 @@ def load_model(model_path: str, model: nn.Module, device: torch.device) -> None:
             print(f"Loading weights from: {model_path}")
             model_dict = torch.load(model_path, map_location=device)
             model.load_state_dict(model_dict)
+            model.to(device)
         except Exception:
             raise ModelLoadFailed(model_path)
     else:

@@ -22,4 +22,5 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 train = "scratchgpt.main:main"
+infer = "scratchgpt.infer:main"
 tiktoken = "scratchgpt.tokenizer.tiktoken:main"

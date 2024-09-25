@@ -266,8 +266,6 @@ def main():
     model = TransformerLanguageModel(NUM_HEADS, tokenizer.vocab_size, N_EMBED, BLOCK_SIZE, NUM_BLOCKS)
     load_model(best_model_path, model, DEVICE)
 
-    model = model.to(DEVICE)
-
     print_model_complexity(model)
     optimizer = AdamW(model.parameters(), lr=LEARNING_RATE)
 

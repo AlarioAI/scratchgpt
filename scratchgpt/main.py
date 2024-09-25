@@ -1,32 +1,36 @@
 import argparse
 import io
 import math
+from random import randint
 import sys
+import multiprocessing as mp
+from typing import Literal
 
-import torch
-from torch import Tensor, dropout, nn
+from ptflops import get_model_complexity_info
+from torch import Tensor, nn
 from torch.nn import functional as F
 from torch.optim.adamw import AdamW
+from torch.optim.optimizer import Optimizer
+from torch.utils.data import DataLoader
 from tqdm import tqdm
-from ptflops import get_model_complexity_info
+import torch
 
 from scratchgpt.tokenizer.char_tokenizer import CharTokenizer
-
-
 from .metering import AverageValueMeter
+from .dataloader import TextDataset
 
 
 torch.manual_seed(1337)
 
-DEVICE: str = "cuda" if torch.cuda.is_available() else "cpu"
-BATCH_SIZE = 32
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+BATCH_SIZE = 4096
 BLOCK_SIZE = 32
-MAX_ITERS = 5000
-LEARNING_RATE = 3e-3
+MAX_EPOCHS = 5
+LEARNING_RATE = 1e-2
 EVAL_INTERVAL = 500
-N_EMBED = 48
-NUM_HEADS = 6
-NUM_BLOCKS = 6
+N_EMBED = 32
+NUM_HEADS = 4
+NUM_BLOCKS = 4
 
 
 def parse_args():
@@ -174,11 +178,55 @@ def load_dataset(path: io.TextIOWrapper) -> str:
     return path.read()
 
 
-def get_batch(block_size: int, batch_size: int, data: Tensor) -> tuple[Tensor, Tensor]:
-    indices = torch.randint(len(data) - block_size, (batch_size,))
-    batch = torch.stack([data[i:i+block_size] for i in indices])
-    targets = torch.stack([data[i+1:i+block_size+1] for i in indices])
-    return batch, targets
+def run_epoch(
+    model: torch.nn.Module,
+    dataloader: DataLoader,
+    device: torch.device,
+    stage: Literal['train', 'validation', 'test'],
+    optimizer: Optimizer | None = None,
+) -> tuple[float, float]:
+    """
+    Run a single epoch of training, validation, or testing.
+
+    Args:
+        model: The model to run the epoch on.
+        dataloader: The DataLoader to use for the epoch.
+        device: The device to run on (e.g., 'cuda' or 'cpu').
+        stage: The stage of the epoch ('train', 'validation', or 'test').
+        optimizer: The optimizer to use for training (only used if stage is 'train').
+
+    Returns:
+        A tuple containing the mean and standard deviation of the loss for the epoch.
+    """
+    average_loss = AverageValueMeter()
+
+    is_train = stage == 'train'
+    model.train(is_train)
+
+    pbar = tqdm(total=len(dataloader), desc=stage.capitalize(), file=sys.stdout)
+
+    with torch.set_grad_enabled(is_train):
+        for batch, targets in dataloader:
+            batch = batch.to(device)
+            targets = targets.to(device)
+
+            if is_train and optimizer is not None:
+                optimizer.zero_grad(set_to_none=True)
+
+            logits, loss = model(batch, targets)
+
+            if is_train and optimizer is not None:
+                loss.backward()
+                optimizer.step()
+
+            average_loss.add(loss.item())
+
+            mean, std = average_loss.value()
+            pbar.set_description(f"{stage.capitalize()} Loss mean - std: {mean:.4f} {std:.4f}")
+            pbar.update(1)
+
+    pbar.close()
+    return average_loss.value()
 
 
 def main():
@@ -191,14 +239,21 @@ def main():
 
     print(f"{tokenizer.vocabulary=}\n{tokenizer.vocab_size=}")
 
-    tokenized_data = tokenizer.encode(text)
-    data = torch.tensor(tokenized_data, dtype=torch.long).to(DEVICE)
+    train_dataset = TextDataset(text, tokenizer, BLOCK_SIZE, "train", 0.9)
+    val_dataset = TextDataset(text, tokenizer, BLOCK_SIZE, "validation", 0.1)
 
-    train_split: float = 0.9
-    train_size = int(train_split * len(text))
+    train_dataloader = DataLoader(train_dataset,
+                                  BATCH_SIZE,
+                                  pin_memory=True,
+                                  num_workers=int(mp.cpu_count() / 2),
+                                  shuffle=True)
 
-    train_data = data[:train_size]
-    val_data = data[train_size:]
+    val_dataloader = DataLoader(val_dataset,
+                                BATCH_SIZE,
+                                pin_memory=True,
+                                num_workers=int(mp.cpu_count() / 2),
+                                shuffle=False)
+
 
     model = BigramLanguageModel(NUM_HEADS, tokenizer.vocab_size, N_EMBED, BLOCK_SIZE, NUM_BLOCKS)
 
@@ -206,34 +261,28 @@ def main():
 
     optimizer = AdamW(model.parameters(), lr=LEARNING_RATE)
 
-    loss = Tensor()
-    pbar = tqdm(total=MAX_ITERS, desc="Training", file=sys.stdout)#, bar_format="{l_bar}{bar}| Loss: {loss:.4f}")
+    for epoch in range(MAX_EPOCHS):
+        print(f"Epoch {epoch + 1}/{MAX_EPOCHS}")
 
-    average_loss = AverageValueMeter()
-    val_average_loss = AverageValueMeter()
-    for step in range(MAX_ITERS):
-        model.train()
-        train_batch, train_targets = get_batch(BLOCK_SIZE, BATCH_SIZE, train_data)
-        logits, loss = model(train_batch, train_targets)
-        optimizer.zero_grad(set_to_none=True)
-        loss.backward()
-        optimizer.step()
-        average_loss.add(loss.item())
-        mean, std = average_loss.value()
+        # Training
+        train_loss_mean, train_loss_std = run_epoch(
+            model=model,
+            dataloader=train_dataloader,
+            device=DEVICE,
+            stage='train',
+            optimizer=optimizer
+        )
+        print(f"Training Loss: {train_loss_mean:.4f} ± {train_loss_std:.4f}")
+        
+        val_loss_mean, val_loss_std = run_epoch(
+            model=model,
+            dataloader=val_dataloader,
+            device=DEVICE,
+            stage='validation'
+        )
+        print(f"Validation Loss: {val_loss_mean:.4f} ± {val_loss_std:.4f}")
 
-        model.eval()
-        with torch.no_grad():
-            val_batch, val_targets = get_batch(BLOCK_SIZE, BATCH_SIZE, val_data)
-            _, val_loss = model(val_batch, val_targets)
-            val_average_loss.add(val_loss.item())
-
-        val_mean, val_std = val_average_loss.value()
-        pbar.set_description(f"Training | Loss: {mean:.4f} {std:.4f}, Validation | Loss: {val_mean:.4f} {val_std:.4f}")
-        pbar.update(1)
-
-        if step % EVAL_INTERVAL == 0:
-            average_loss.reset()
-            val_average_loss.reset()
+        print()  # Empty line for readability between epochs
 
     context = torch.zeros((1,1), dtype=torch.long).to(DEVICE)
     generated = model.generate(context, max_new_tokens=500)

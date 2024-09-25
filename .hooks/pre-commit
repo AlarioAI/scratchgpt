@@ -1,3 +1,7 @@
+#!/usr/bin/env bash
+
+set -e
+
 poetry run isort --check scratchgpt
 poetry run black --check scratchgpt
 poetry run mypy --strict scratchgpt

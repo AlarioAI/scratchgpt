@@ -15,7 +15,7 @@ import torch
 
 from .model_io import get_best_model_weights_path, get_latest_model_weights_path, get_tokenizer, load_model, save_tokenizer
 from .metering import AverageValueMeter
-from .dataloader import FileTextProvider, FolderTextProvider, TextDataset, TextProvider, load_text_from_files
+from .dataloader import FileTextProvider, FolderTextProvider, TextDataset, TextProvider
 
 
 torch.manual_seed(1337)
@@ -33,7 +33,7 @@ NUM_BLOCKS = 6
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("-t",
-                        "--train_file",
+                        "--train_source",
                         help="The file you want to train on",
                         required=True,
                         type=str)
@@ -238,12 +238,12 @@ def main():
     args = parse_args()
     print(f"Using the device: {DEVICE}")
 
-    text = get_text_provider(args.train_file)
+    text_provider = get_text_provider(args.train_source)
 
     tokenizer = get_tokenizer(args.experiment)
 
-    train_dataset = TextDataset(text, tokenizer, BLOCK_SIZE, "train", 0.9)
-    val_dataset = TextDataset(text, tokenizer, BLOCK_SIZE, "validation", 0.1)
+    train_dataset = TextDataset(text_provider, tokenizer, BLOCK_SIZE, "train", 0.9)
+    val_dataset = TextDataset(text_provider, tokenizer, BLOCK_SIZE, "validation", 0.1)
 
     cpu_count = os.cpu_count()
     assert cpu_count is not None
@@ -264,7 +264,7 @@ def main():
     latest_model_path = get_latest_model_weights_path(args.experiment)
 
     model = TransformerLanguageModel(NUM_HEADS, tokenizer.vocab_size, N_EMBED, BLOCK_SIZE, NUM_BLOCKS)
-    load_model(best_model_path, model)
+    load_model(best_model_path, model, DEVICE)
 
     model = model.to(DEVICE)
 

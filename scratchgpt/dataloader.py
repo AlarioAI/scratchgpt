@@ -20,12 +20,13 @@ class FileTextProvider(TextProvider):
         if not os.path.exists(file_path):
             raise ValueError(f"File path {file_path} does not exist")
 
-        self._file_path = file_path
+        self._data = ""
+        with open(file_path, "r") as f:
+            self._data = f.read()
 
     @override
     def get_text(self) -> str:
-        with open(self._file_path, "r") as f:
-            return f.read()
+        return self._data
 
 
 class FolderTextProvider(TextProvider):
@@ -37,19 +38,18 @@ class FolderTextProvider(TextProvider):
         if not os.path.isdir(dir_path):
             raise ValueError(f"Directory path {dir_path} is not a directory")
 
-        self._dir_path = dir_path
-
-    @override
-    def get_text(self) -> str:
-        data = ""
-        for root, _, files in os.walk(self._dir_path):
+        self._data = ""
+        for root, _, files in os.walk(dir_path):
             for file_name in files:
                 if not file_name.startswith('.'):
                     file_path = os.path.join(root, file_name)
                     print(f"Loading data from {file_path}")
                     with open(file_path, 'r', encoding='utf-8') as f:
-                        data += f.read() + "\n"  # Concatenate with a newline between files
-        return data
+                        self._data += f.read() + "\n"  # Concatenate with a newline between files
+
+    @override
+    def get_text(self) -> str:
+        return self._data
 
 
 class TextDataset(Dataset):

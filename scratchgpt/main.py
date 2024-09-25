@@ -256,33 +256,33 @@ def main():
 
 
     model = BigramLanguageModel(NUM_HEADS, tokenizer.vocab_size, N_EMBED, BLOCK_SIZE, NUM_BLOCKS)
-
     model = model.to(DEVICE)
-
     optimizer = AdamW(model.parameters(), lr=LEARNING_RATE)
 
-    for epoch in range(MAX_EPOCHS):
-        print(f"Epoch {epoch + 1}/{MAX_EPOCHS}")
+    try:
+        for epoch in range(MAX_EPOCHS):
+            print(f"Epoch {epoch + 1}/{MAX_EPOCHS}")
 
-        # Training
-        train_loss_mean, train_loss_std = run_epoch(
-            model=model,
-            dataloader=train_dataloader,
-            device=DEVICE,
-            stage='train',
-            optimizer=optimizer
-        )
-        print(f"Training Loss: {train_loss_mean:.4f} ± {train_loss_std:.4f}")
-        
-        val_loss_mean, val_loss_std = run_epoch(
-            model=model,
-            dataloader=val_dataloader,
-            device=DEVICE,
-            stage='validation'
-        )
-        print(f"Validation Loss: {val_loss_mean:.4f} ± {val_loss_std:.4f}")
+            train_loss_mean, train_loss_std = run_epoch(
+                model=model,
+                dataloader=train_dataloader,
+                device=DEVICE,
+                stage='train',
+                optimizer=optimizer
+            )
+            print(f"Training Loss: {train_loss_mean:.4f} ± {train_loss_std:.4f}")
 
-        print()  # Empty line for readability between epochs
+            val_loss_mean, val_loss_std = run_epoch(
+                model=model,
+                dataloader=val_dataloader,
+                device=DEVICE,
+                stage='validation'
+            )
+            print(f"Validation Loss: {val_loss_mean:.4f} ± {val_loss_std:.4f}")
+
+            print()
+    except KeyboardInterrupt:
+        print("Trying my best here")
 
     context = torch.zeros((1,1), dtype=torch.long).to(DEVICE)
     generated = model.generate(context, max_new_tokens=500)

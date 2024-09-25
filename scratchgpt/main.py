@@ -1,14 +1,11 @@
 import argparse
-import io
 import math
 import os
-from random import randint
 import sys
-import multiprocessing as mp
 from typing import Literal
 
 from ptflops import get_model_complexity_info
-from torch import Tensor, exp, nn
+from torch import Tensor, nn
 from torch.nn import functional as F
 from torch.optim.adamw import AdamW
 from torch.optim.optimizer import Optimizer
@@ -16,27 +13,21 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 import torch
 
-from scratchgpt.tokenizer.char_tokenizer import Utf8Tokenizer
-from scratchgpt.tokenizer.tiktoken import TiktokenWrapper
+from .model_io import get_best_model_weights_path, get_latest_model_weights_path, get_tokenizer, load_model, save_tokenizer
 from .metering import AverageValueMeter
-from .dataloader import TextDataset
+from .dataloader import FileTextProvider, FolderTextProvider, TextDataset, TextProvider, load_text_from_files
 
 
 torch.manual_seed(1337)
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-BATCH_SIZE = 256
-BLOCK_SIZE = 32
-MAX_EPOCHS = 5
-LEARNING_RATE = 3e-3
-EVAL_INTERVAL = 500
-N_EMBED = 32
-NUM_HEADS = 4
-NUM_BLOCKS = 4
-
-
-class ModelLoadFailed(Exception):
-    pass
+BATCH_SIZE = 32
+BLOCK_SIZE = 256
+MAX_EPOCHS = 50
+LEARNING_RATE = 3e-4
+N_EMBED = 384
+NUM_HEADS = 6
+NUM_BLOCKS = 6
 
 
 def parse_args():
@@ -45,7 +36,7 @@ def parse_args():
                         "--train_file",
                         help="The file you want to train on",
                         required=True,
-                        type=argparse.FileType("r"))
+                        type=str)
     parser.add_argument("-e",
                         "--experiment",
                         help="The path to the folder where to save experiment checkpoints",
@@ -70,7 +61,7 @@ class Head(nn.Module):
         self._key = nn.Linear(embedding_size, head_size, bias=False)
         self._query = nn.Linear(embedding_size, head_size, bias=False)
         self._value = nn.Linear(embedding_size, head_size, bias=False)
-        self._dropout_factor = .4
+        self._dropout_factor = .2
         self._dropout = nn.Dropout(self._dropout_factor)
         self.register_buffer("tril", torch.tril(torch.ones(block_size, block_size)))
 
@@ -95,7 +86,7 @@ class Head(nn.Module):
 class MultiHeadAttention(nn.Module):
     def __init__(self, num_heads: int, embedding_size: int, block_size: int, head_size: int) -> None:
         super().__init__()
-        self._dropout_factor = .4
+        self._dropout_factor = .2
         self._heads = nn.ModuleList(Head(embedding_size, block_size, head_size) for _ in range(num_heads))
         self._proj = nn.Linear(embedding_size, embedding_size)
         self._dropout = nn.Dropout(self._dropout_factor)
@@ -111,7 +102,7 @@ class FeedFoward(nn.Module):
     def __init__(self, embedding_size: int) -> None:
         super().__init__()
         self._ffwd_multipler = 4
-        self._dropout = .4
+        self._dropout = .2
 
         self._net = nn.Sequential(
             nn.Linear(embedding_size, embedding_size * self._ffwd_multipler),
@@ -186,10 +177,6 @@ class TransformerLanguageModel(nn.Module):
         return context
 
 
-def load_dataset(path: io.TextIOWrapper) -> str:
-    return path.read()
-
-
 def run_epoch(
     model: torch.nn.Module,
     dataloader: DataLoader,
@@ -241,47 +228,35 @@ def run_epoch(
     return average_loss.value()
 
 
-def get_best_model_weights_path(exp_folder: str) -> str:
-    return os.path.join(exp_folder, "best_model_weights.pth")
+def get_text_provider(path: str) -> TextProvider:
+    if os.path.isdir(path):
+        return FolderTextProvider(path)
+    return FileTextProvider(path)
 
-
-def get_latest_model_weights_path(exp_folder: str) -> str:
-    return os.path.join(exp_folder, "latest_model_weights.pth")
-
-
-def load_model(model_path: str, model: nn.Module) -> None:
-    if os.path.exists(model_path):
-        try:
-            print(f"Loading weights from: {model_path}")
-            model_dict = torch.load(model_path, map_location=DEVICE)
-            model.load_state_dict(model_dict)
-        except Exception:
-            raise ModelLoadFailed(model_path)
-    else:
-        print("No model path exists, proceeding with a new model")
- 
 
 def main():
     args = parse_args()
     print(f"Using the device: {DEVICE}")
 
-    text = load_dataset(args.train_file)
+    text = get_text_provider(args.train_file)
 
-    tokenizer = TiktokenWrapper("cl100k_base")
+    tokenizer = get_tokenizer(args.experiment)
 
     train_dataset = TextDataset(text, tokenizer, BLOCK_SIZE, "train", 0.9)
     val_dataset = TextDataset(text, tokenizer, BLOCK_SIZE, "validation", 0.1)
 
+    cpu_count = os.cpu_count()
+    assert cpu_count is not None
     train_dataloader = DataLoader(train_dataset,
                                   BATCH_SIZE,
                                   pin_memory=True,
-                                  num_workers=int(mp.cpu_count() / 2),
+                                  num_workers=int(cpu_count / 2),
                                   shuffle=True)
 
     val_dataloader = DataLoader(val_dataset,
                                 BATCH_SIZE,
                                 pin_memory=True,
-                                num_workers=int(mp.cpu_count() / 2),
+                                num_workers=int(cpu_count / 2),
                                 shuffle=False)
 
 
@@ -301,6 +276,8 @@ def main():
     if not os.path.exists(args.experiment):
         os.makedirs(args.experiment, exist_ok=True)
 
+    save_tokenizer(args.experiment, tokenizer)
+
     try:
         for epoch in range(MAX_EPOCHS):
             print(f"Epoch {epoch + 1}/{MAX_EPOCHS}")
@@ -313,6 +290,7 @@ def main():
                 optimizer=optimizer
             )
             print(f"Training Loss: {train_loss_mean:.4f} ± {train_loss_std:.4f}")
+            torch.save(model.state_dict(), latest_model_path)
 
             val_loss_mean, val_loss_std = run_epoch(
                 model=model,
@@ -321,8 +299,6 @@ def main():
                 stage='validation'
             )
             print(f"Validation Loss: {val_loss_mean:.4f} ± {val_loss_std:.4f}")
-
-            torch.save(model.state_dict(), latest_model_path)
 
             if val_loss_mean < best_val_loss:
                 best_val_loss = val_loss_mean

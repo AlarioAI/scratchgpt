@@ -16,6 +16,7 @@ from tqdm import tqdm
 import torch
 
 from scratchgpt.tokenizer.char_tokenizer import CharTokenizer
+from scratchgpt.tokenizer.tiktoken import TiktokenWrapper
 from .metering import AverageValueMeter
 from .dataloader import TextDataset
 
@@ -23,10 +24,10 @@ from .dataloader import TextDataset
 torch.manual_seed(1337)
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-BATCH_SIZE = 4096
-BLOCK_SIZE = 32
+BATCH_SIZE = 256
+BLOCK_SIZE = 64
 MAX_EPOCHS = 5
-LEARNING_RATE = 1e-2
+LEARNING_RATE = 3e-3
 EVAL_INTERVAL = 500
 N_EMBED = 32
 NUM_HEADS = 4
@@ -144,6 +145,7 @@ class BigramLanguageModel(nn.Module):
         self._lm_head = nn.Linear(embedding_size, vocab_size)
 
     def forward(self, context: Tensor, targets: Tensor|None = None) -> tuple[Tensor, Tensor]:
+        context = context.long()
         B, T = context.shape
 
         tok_emb = self._token_embedding_table(context) # B, T, C
@@ -235,9 +237,7 @@ def main():
 
     text = load_dataset(args.train_file)
 
-    tokenizer = CharTokenizer(text)
-
-    print(f"{tokenizer.vocabulary=}\n{tokenizer.vocab_size=}")
+    tokenizer = TiktokenWrapper()
 
     train_dataset = TextDataset(text, tokenizer, BLOCK_SIZE, "train", 0.9)
     val_dataset = TextDataset(text, tokenizer, BLOCK_SIZE, "validation", 0.1)
@@ -257,6 +257,7 @@ def main():
 
     model = BigramLanguageModel(NUM_HEADS, tokenizer.vocab_size, N_EMBED, BLOCK_SIZE, NUM_BLOCKS)
     model = model.to(DEVICE)
+    print_model_complexity(model)
     optimizer = AdamW(model.parameters(), lr=LEARNING_RATE)
 
     try:

@@ -1,0 +1,5 @@
+poetry run isort --check scratchgpt
+poetry run black --check scratchgpt
+poetry run mypy --strict scratchgpt
+poetry run bandit --recursive --skip B105 scratchgpt
+poetry run pytest tests/

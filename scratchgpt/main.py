@@ -10,6 +10,8 @@ from torch.optim.adamw import AdamW
 from tqdm import tqdm
 from ptflops import get_model_complexity_info
 
+from scratchgpt.tokenizer.char_tokenizer import CharTokenizer
+
 
 from .metering import AverageValueMeter
 
@@ -17,12 +19,12 @@ from .metering import AverageValueMeter
 torch.manual_seed(1337)
 
 DEVICE: str = "cuda" if torch.cuda.is_available() else "cpu"
-BATCH_SIZE = 64
-BLOCK_SIZE = 256
+BATCH_SIZE = 32
+BLOCK_SIZE = 32
 MAX_ITERS = 5000
-LEARNING_RATE = 3e-4
+LEARNING_RATE = 3e-3
 EVAL_INTERVAL = 500
-N_EMBED = 384
+N_EMBED = 48
 NUM_HEADS = 6
 NUM_BLOCKS = 6
 
@@ -38,9 +40,6 @@ def parse_args():
 
 
 def print_model_complexity(model: nn.Module):
-    batch_size = 1
-    block_size = BLOCK_SIZE
-
     input_shape = (BLOCK_SIZE,)
 
     flops, params = get_model_complexity_info(model, input_shape, print_per_layer_stat=True, as_strings=True)
@@ -56,7 +55,7 @@ class Head(nn.Module):
         self._key = nn.Linear(embedding_size, head_size, bias=False)
         self._query = nn.Linear(embedding_size, head_size, bias=False)
         self._value = nn.Linear(embedding_size, head_size, bias=False)
-        self._dropout_factor = .6
+        self._dropout_factor = .4
         self._dropout = nn.Dropout(self._dropout_factor)
         self.register_buffer("tril", torch.tril(torch.ones(block_size, block_size)))
 
@@ -81,7 +80,7 @@ class Head(nn.Module):
 class MultiHeadAttention(nn.Module):
     def __init__(self, num_heads: int, embedding_size: int, block_size: int, head_size: int) -> None:
         super().__init__()
-        self._dropout_factor = .6
+        self._dropout_factor = .4
         self._heads = nn.ModuleList(Head(embedding_size, block_size, head_size) for _ in range(num_heads))
         self._proj = nn.Linear(embedding_size, embedding_size)
         self._dropout = nn.Dropout(self._dropout_factor)
@@ -97,7 +96,7 @@ class FeedFoward(nn.Module):
     def __init__(self, embedding_size: int) -> None:
         super().__init__()
         self._ffwd_multipler = 4
-        self._dropout = .6
+        self._dropout = .4
 
         self._net = nn.Sequential(
             nn.Linear(embedding_size, embedding_size * self._ffwd_multipler),
@@ -175,27 +174,6 @@ def load_dataset(path: io.TextIOWrapper) -> str:
     return path.read()
 
 
-def get_vocab(text: str) -> list[str]:
-    chars = sorted(list(set(text)))
-    return chars
-
-
-def str_to_int(chars: list[str]) -> dict[str, int]:
-    return {char:idx for idx, char in enumerate(chars)}
-
-
-def int_to_str(chars: list[str]) -> dict[int, str]:
-    return {idx: char for idx, char in enumerate(chars)}
-
-
-def encode(text: str, mapping: dict[str, int]) -> list[int]:
-    return [mapping[char] for char in text]
-
-
-def decode(encoding: list[int], mapping: dict[int, str]) -> str:
-    return ''.join(mapping[v] for v in encoding)
-
-
 def get_batch(block_size: int, batch_size: int, data: Tensor) -> tuple[Tensor, Tensor]:
     indices = torch.randint(len(data) - block_size, (batch_size,))
     batch = torch.stack([data[i:i+block_size] for i in indices])
@@ -209,15 +187,12 @@ def main():
 
     text = load_dataset(args.train_file)
 
-    chars = get_vocab(text)
+    tokenizer = CharTokenizer(text)
 
-    vocab_size = len(chars)
-    print(f"{chars=}\n{vocab_size=}")
+    print(f"{tokenizer.vocabulary=}\n{tokenizer.vocab_size=}")
 
-    encoding_mapping = str_to_int(chars)
-    decoding_mapping = int_to_str(chars)
-
-    data = torch.tensor(encode(text, encoding_mapping), dtype=torch.long).to(DEVICE)
+    tokenized_data = tokenizer.encode(text)
+    data = torch.tensor(tokenized_data, dtype=torch.long).to(DEVICE)
 
     train_split: float = 0.9
     train_size = int(train_split * len(text))
@@ -225,7 +200,7 @@ def main():
     train_data = data[:train_size]
     val_data = data[train_size:]
 
-    model = BigramLanguageModel(NUM_HEADS, vocab_size, N_EMBED, BLOCK_SIZE, NUM_BLOCKS)
+    model = BigramLanguageModel(NUM_HEADS, tokenizer.vocab_size, N_EMBED, BLOCK_SIZE, NUM_BLOCKS)
 
     model = model.to(DEVICE)
 
@@ -248,7 +223,7 @@ def main():
 
         model.eval()
         with torch.no_grad():
-            val_batch, val_targets = get_batch(BLOCK_SIZE, BATCH_SIZE, train_data)
+            val_batch, val_targets = get_batch(BLOCK_SIZE, BATCH_SIZE, val_data)
             _, val_loss = model(val_batch, val_targets)
             val_average_loss.add(val_loss.item())
 
@@ -262,7 +237,7 @@ def main():
 
     context = torch.zeros((1,1), dtype=torch.long).to(DEVICE)
     generated = model.generate(context, max_new_tokens=500)
-    first_batch_trained = decode(generated[0].tolist(), decoding_mapping)
+    first_batch_trained = tokenizer.decode(generated[0].tolist())
     print(first_batch_trained)
 
 

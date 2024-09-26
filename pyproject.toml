@@ -2,13 +2,14 @@
 name = "scratchgpt"
 version = "0.1.0"
 description = ""
-authors = ["Your Name <you@example.com>"]
+authors = ["Aleksandr Yeganov <ayeganov@gmail.com>", "Dario Cazzani <dariocazzani@gmail.com"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.12"
 torch = "^2.4"
 tqdm = "^4.66"
+types-tqdm = "^4.66"
 ptflops = "^0.7"
 numpy = "^2.1"
 tiktoken = "^0.7"
@@ -26,9 +27,8 @@ black = "^24.2.0"
 profile = "black"
 line_length = 120
 force_sort_within_sections = true
-sections = ["FUTURE", "STDLIB", "THIRDPARTY", "CISCO", "FIRSTPARTY", "LOCALFOLDER"]
+sections = ["FUTURE", "STDLIB", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
 default_section = "THIRDPARTY"
-known_cisco = ["libwbx3"]
 skip_glob = [".venv"]
 
 [tool.pylint."MESSAGES CONTROL"]

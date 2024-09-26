@@ -15,7 +15,10 @@ NUM_HEADS = 6
 NUM_BLOCKS = 6
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
+    """
+    Create CLI arg parser and execute it
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-d",
@@ -41,7 +44,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def main():
+def main() -> None:
     args = parse_args()
     tokenizer = get_tokenizer(args.experiment)
 

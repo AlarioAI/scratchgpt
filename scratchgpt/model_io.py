@@ -41,7 +41,7 @@ def get_tokenizer(exp_path: str) -> Tokenizer:
     tokenizer_path = get_tokenizer_path(exp_path)
     if os.path.exists(tokenizer_path):
         with open(tokenizer_path, "rb") as f:
-            tokenizer = pickle.load(f)
+            tokenizer: Tokenizer = pickle.load(f)
     else:
         tokenizer = TiktokenWrapper("cl100k_base")
     return tokenizer

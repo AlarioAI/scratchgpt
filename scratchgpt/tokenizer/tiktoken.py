@@ -49,12 +49,12 @@ class TiktokenWrapper(Tokenizer):
         """
         return tuple(self._tokenizer.decode([i]) for i in range(self.vocab_size))
 
-    def clear_cache(self):
+    def clear_cache(self) -> None:
         """Clear the cached vocabulary."""
         self._get_cached_vocabulary.cache_clear()
 
 
-def main():
+def main() -> None:
     tokenizer = TiktokenWrapper()
 
     # Test encoding and decoding

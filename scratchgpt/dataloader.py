@@ -3,6 +3,7 @@ import os
 from typing import Literal, override
 
 import torch
+from torch import Tensor
 from torch.utils.data import Dataset
 
 from .tokenizer.base_tokenizer import Tokenizer
@@ -45,14 +46,16 @@ class FolderTextProvider(TextProvider):
                     file_path = os.path.join(root, file_name)
                     print(f"Loading data from {file_path}")
                     with open(file_path, "r", encoding="utf-8") as f:
-                        self._data += f.read() + "\n"  # Concatenate with a newline between files
+                        self._data += f.read() + "\n"  # Concatenate with a
+                        # newline between files, could be the place to add
+                        # special tokens
 
     @override
     def get_text(self) -> str:
         return self._data
 
 
-class TextDataset(Dataset):
+class TextDataset(Dataset[tuple[Tensor, Tensor]]):
     def __init__(
         self,
         text_provider: TextProvider,
@@ -61,7 +64,7 @@ class TextDataset(Dataset):
         split: Literal["train", "validation", "test"],
         train_ratio: float = 0.8,
         val_ratio: float = 0.1,
-    ):
+    ) -> None:
         self.tokenizer = tokenizer
         self.block_size = block_size
 
@@ -80,10 +83,10 @@ class TextDataset(Dataset):
         else:
             raise ValueError(f"Invalid split: {split}. Must be 'train', 'validation', or 'test'.")
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.data) - self.block_size
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int) -> tuple[Tensor, Tensor]:
         block = self.data[idx : idx + self.block_size]
         target = self.data[idx + 1 : idx + self.block_size + 1]
         return block, target

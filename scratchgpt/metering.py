@@ -50,10 +50,10 @@ class AverageValueMeter(Meter):
 
     def reset(self) -> None:
         self.n: int = 0
-        self.sum: float = 0.0
-        self.var: float = 0.0
-        self.val: float = 0.0
-        self.mean: float = np.nan
-        self.mean_old: float = 0.0
-        self.m_s: float = 0.0
-        self.std: float = np.nan
+        self.sum = 0.0
+        self.var = 0.0
+        self.val = 0.0
+        self.mean = np.nan
+        self.mean_old = 0.0
+        self.m_s = 0.0
+        self.std = np.nan

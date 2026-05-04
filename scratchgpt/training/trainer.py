@@ -48,6 +48,14 @@ class Trainer:
         B, T, C = logits.shape
         return F.cross_entropy(logits.view(B * T, C), labels.view(B * T))
 
+    def _training_step(self, batch: dict[str, Tensor]) -> float:
+        """One zero_grad / forward / backward / optimizer step. Returns loss.item()."""
+        self.optimizer.zero_grad(set_to_none=True)
+        loss = self._forward_loss(batch)
+        loss.backward()  # type: ignore[no-untyped-call]
+        self.optimizer.step()
+        return loss.item()
+
     def _evaluate(self, val_loader: DictTensorLoader) -> float:
         self.model.eval()
         meter = AverageValueMeter()
@@ -95,13 +103,9 @@ class Trainer:
                 if step >= max_steps:
                     break
 
-                self.optimizer.zero_grad(set_to_none=True)
-                loss = self._forward_loss(batch)
-                loss.backward()  # type: ignore[no-untyped-call]
-                self.optimizer.step()
-
+                loss_value = self._training_step(batch)
                 step += 1
-                meter.add(loss.item())
+                meter.add(loss_value)
                 pbar.update(1)
 
                 if step % log_every == 0 and self.recorder is not None:
@@ -151,9 +155,13 @@ class Trainer:
         train_loader: DictTensorLoader,
         val_loader: DictTensorLoader | None,
     ) -> None:
-        """Legacy epoch-based loop. Preserves checkpoint filenames and the epoch print loop, but replaces
-        the per-batch running-std meter with _evaluate (mean only) and drops the no-val-dataset emoji
-        message. Acceptable because epoch mode is a fallback for back-compat; new work uses step mode."""
+        """Legacy epoch-based loop, kept for backwards compatibility.
+
+        Writes checkpoints to the legacy paths under ``experiment_path``
+        (``latest_model_weights.pth`` / ``best_model_weights.pth``), not to the
+        RunRecorder's ``checkpoints/`` directory. New work should use step mode,
+        which writes to the recorder-owned run directory.
+        """
         best_val_loss = float("inf")
         latest_model_path = self.experiment_path / "latest_model_weights.pth"
         best_model_path = self.experiment_path / "best_model_weights.pth"
@@ -164,12 +172,9 @@ class Trainer:
             self.model.train()
             meter = AverageValueMeter()
             for batch in tqdm(train_loader, desc="Train", file=sys.stdout):
-                self.optimizer.zero_grad(set_to_none=True)
-                loss = self._forward_loss(batch)
-                loss.backward()  # type: ignore[no-untyped-call]
-                self.optimizer.step()
+                loss_value = self._training_step(batch)
                 step += 1
-                meter.add(loss.item())
+                meter.add(loss_value)
             mean_train, _ = meter.value()
             print(f"Train Loss: {mean_train:.4f}")
             torch.save(self.model.state_dict(), latest_model_path)

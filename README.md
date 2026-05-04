@@ -134,6 +134,31 @@ uv run pytest ./tests/
 ```
 
 
+## Benchmarks
+
+ScratchGPT ships with a reproducible benchmarking harness. Every proposed change is measured against three fixed-budget tasks (language / chess / chemistry), with results committed under `runs/`.
+
+Run a benchmark:
+
+```bash
+uv run python benchmarks/b1_tinystories.py --slug my-experiment
+```
+
+Compare runs:
+
+```bash
+uv run python scripts/compare.py runs/baseline-b1-tinystories runs/*-my-experiment
+```
+
+Throughput-only check:
+
+```bash
+uv run python scripts/bench.py --device cuda
+```
+
+Every comparison enforces a `benchmark_contract` (max_steps, block_size, batch_size, learning rate, seed, dropout, iteration_type, dataset_key) and hard-errors if runs disagree. Pass `--allow-contract-mismatch` only for deliberate cross-budget comparisons.
+
+
 ## Future Roadmap
 
 - [ ] Apply SOTA optimizations

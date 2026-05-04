@@ -2,8 +2,8 @@
 karpathy*
 __pycache__
 *.pyc
-experiments
-solutions
+/experiments
+/solutions
 scratch_gpt.yaml
 scratchpad/
 

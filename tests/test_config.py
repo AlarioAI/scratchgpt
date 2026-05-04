@@ -25,10 +25,14 @@ def test_training_rejects_zero_eval_every() -> None:
         ScratchGPTTraining(eval_every_steps=0)
 
 
-def test_architecture_defaults_preserve_phase1_behavior() -> None:
+def test_architecture_defaults_reflect_phase2_decisions() -> None:
     arch = ScratchGPTArchitecture(vocab_size=256)
-    # Phase 2 flags: defaults must NOT change Phase 1 numerics.
-    assert arch.attention_scale_mode == "embedding"  # buggy 1/sqrt(C), matches Phase 1 baseline
+    # Phase 2 Exp-1 flipped attention_scale_mode default to "head" (textbook
+    # 1/sqrt(head_size)). The "embedding" variant remains available for
+    # reproducing Phase 1 baselines. See memory/experiments/2026-05-04-exp1-*.md.
+    assert arch.attention_scale_mode == "head"
+    # Remaining flags: defaults still preserve Phase 1 numerics pending their
+    # own ablation experiments.
     assert arch.ffn_activation == "relu"
     assert arch.tie_weights is False
     assert arch.init_scheme == "default"

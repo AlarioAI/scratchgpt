@@ -41,8 +41,12 @@ class ScratchGPTArchitecture(BaseSettings):
     vocab_size: int | None = None
 
     # --- Phase 2 flags. Defaults preserve Phase 1 baseline numerics. ---
-    attention_scale_mode: Literal["embedding", "head"] = "embedding"
-    """Attention softmax temperature: 'embedding' (Phase 1 bug, 1/sqrt(C)) or 'head' (correct, 1/sqrt(head_size))."""
+    attention_scale_mode: Literal["embedding", "head"] = "head"
+    """
+    Attention softmax temperature. 'head' uses the textbook 1/sqrt(head_size);
+    'embedding' uses the Phase 1 bug 1/sqrt(embedding_size) and is kept opt-in
+    for reproducing pre-Phase-2 baselines.
+    """
     ffn_activation: Literal["relu", "gelu"] = "relu"
     tie_weights: bool = False
     """Share the token embedding matrix with the lm_head (weight tying)."""

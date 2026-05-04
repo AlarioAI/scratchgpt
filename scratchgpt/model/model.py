@@ -1,5 +1,5 @@
 import math
-from typing import Any
+from typing import Any, Literal
 
 import torch
 from ptflops import get_model_complexity_info
@@ -16,6 +16,7 @@ class Head(nn.Module):
         block_size: int,
         head_size: int,
         dropout_rate: float,
+        scale_mode: Literal["embedding", "head"] = "embedding",
     ) -> None:
         super().__init__()
 
@@ -24,13 +25,14 @@ class Head(nn.Module):
         self._value = nn.Linear(embedding_size, head_size, bias=False)
         self._dropout = nn.Dropout(dropout_rate)
         self.register_buffer("tril", torch.tril(torch.ones(block_size, block_size)))
+        self._attention_scale = 1.0 / math.sqrt(embedding_size if scale_mode == "embedding" else head_size)
 
     def forward(self, context: Tensor) -> Tensor:
-        B, T, C = context.shape
+        B, T, _ = context.shape
         key = self._key(context)
         query = self._query(context)
 
-        normalization_term: float = 1.0 / math.sqrt(C)
+        normalization_term: float = self._attention_scale
         attention_scores = query @ key.transpose(-2, -1) * normalization_term
         attention_scores = attention_scores.masked_fill(
             self.tril[:T, :T] == 0,  # type: ignore
@@ -54,10 +56,15 @@ class MultiHeadAttention(nn.Module):
         block_size: int,
         head_size: int,
         dropout_rate: float,
+        scale_mode: Literal["embedding", "head"] = "embedding",
+        use_bias: bool = True,
     ) -> None:
         super().__init__()
-        self._heads = nn.ModuleList(Head(embedding_size, block_size, head_size, dropout_rate) for _ in range(num_heads))
-        self._proj = nn.Linear(embedding_size, embedding_size)
+        self._heads = nn.ModuleList(
+            Head(embedding_size, block_size, head_size, dropout_rate, scale_mode) for _ in range(num_heads)
+        )
+        self._proj = nn.Linear(embedding_size, embedding_size, bias=use_bias)
+        self._proj._is_residual_projection = True  # type: ignore[assignment]
         self._dropout = nn.Dropout(dropout_rate)
 
     def forward(self, context: Tensor) -> Tensor:
@@ -68,16 +75,24 @@ class MultiHeadAttention(nn.Module):
 
 
 class FeedForward(nn.Module):
-    def __init__(self, embedding_size: int, dropout_rate: float) -> None:
+    def __init__(
+        self,
+        embedding_size: int,
+        dropout_rate: float,
+        activation_name: Literal["relu", "gelu"] = "relu",
+        use_bias: bool = True,
+    ) -> None:
         super().__init__()
         self._ffwd_multipler = 4
 
+        activation: nn.Module = nn.ReLU() if activation_name == "relu" else nn.GELU()
         self._net = nn.Sequential(
-            nn.Linear(embedding_size, embedding_size * self._ffwd_multipler),
-            nn.ReLU(),
-            nn.Linear(self._ffwd_multipler * embedding_size, embedding_size),
+            nn.Linear(embedding_size, embedding_size * self._ffwd_multipler, bias=use_bias),
+            activation,
+            nn.Linear(self._ffwd_multipler * embedding_size, embedding_size, bias=use_bias),
             nn.Dropout(dropout_rate),
         )
+        self._net[2]._is_residual_projection = True  # type: ignore[assignment]
 
     def forward(self, tensor: Tensor) -> Tensor:
         out: Tensor = self._net(tensor)
@@ -91,6 +106,9 @@ class Block(nn.Module):
         embedding_size: int,
         block_size: int,
         dropout_rate: float,
+        scale_mode: Literal["embedding", "head"] = "embedding",
+        activation_name: Literal["relu", "gelu"] = "relu",
+        use_bias: bool = True,
     ) -> None:
         super().__init__()
         head_size = embedding_size // num_heads
@@ -100,10 +118,12 @@ class Block(nn.Module):
             block_size,
             head_size,
             dropout_rate,
+            scale_mode,
+            use_bias,
         )
-        self._ffwd = FeedForward(embedding_size, dropout_rate)
-        self._layer_norm_attention = nn.LayerNorm(embedding_size)
-        self._layer_norm_ffwd = nn.LayerNorm(embedding_size)
+        self._ffwd = FeedForward(embedding_size, dropout_rate, activation_name, use_bias)
+        self._layer_norm_attention = nn.LayerNorm(embedding_size, bias=use_bias)
+        self._layer_norm_ffwd = nn.LayerNorm(embedding_size, bias=use_bias)
 
     def forward(self, tensor: Tensor) -> Tensor:
         normal_tensor = self._layer_norm_attention(tensor)
@@ -138,12 +158,34 @@ class TransformerLanguageModel(nn.Module):
                     arch.embedding_size,
                     arch.block_size,
                     training.dropout_rate,
+                    scale_mode=arch.attention_scale_mode,
+                    activation_name=arch.ffn_activation,
+                    use_bias=arch.use_bias,
                 )
                 for _ in range(arch.num_blocks)
             ]
         )
-        self._block_norm = nn.LayerNorm(arch.embedding_size)
-        self._lm_head = nn.Linear(arch.embedding_size, arch.vocab_size)
+        self._block_norm = nn.LayerNorm(arch.embedding_size, bias=arch.use_bias)
+        self._lm_head = nn.Linear(arch.embedding_size, arch.vocab_size, bias=arch.use_bias)
+
+        if arch.tie_weights:
+            self._lm_head.weight = self._token_embedding_table.weight
+
+        if arch.init_scheme == "gpt2":
+            self.apply(self._init_weights)
+            # GPT-2 "residual scaling": dampen residual projections by 1/sqrt(2*N_blocks).
+            scale = 1.0 / math.sqrt(2 * arch.num_blocks)
+            for module in self.modules():
+                if isinstance(module, nn.Linear) and getattr(module, "_is_residual_projection", False):
+                    module.weight.data.mul_(scale)
+
+    def _init_weights(self, module: nn.Module) -> None:
+        if isinstance(module, nn.Linear):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+            if module.bias is not None:
+                torch.nn.init.zeros_(module.bias)
+        elif isinstance(module, nn.Embedding):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
     def forward(self, context: Tensor) -> Tensor:
         context = context.long()

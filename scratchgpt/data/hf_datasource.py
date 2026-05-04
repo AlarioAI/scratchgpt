@@ -58,10 +58,27 @@ class HFDataSource:
     Handles both standard and streaming datasets.
     """
 
-    def __init__(self, path_or_name: str, split: str = "train", streaming: bool = False, text_column: str = "text"):
+    def __init__(
+        self,
+        path_or_name: str | None = None,
+        split: str = "train",
+        streaming: bool = False,
+        text_column: str = "text",
+        dataset: HFDataset | HFIterableDataset | None = None,
+    ):
         self._text_column = text_column
-        self._streaming = streaming
 
+        # If a pre-loaded dataset is provided, use it directly and skip loading.
+        if dataset is not None:
+            self._dataset = dataset
+            self._streaming = isinstance(dataset, HFIterableDataset)
+            return
+
+        # If no dataset and no path_or_name, we can't proceed.
+        if path_or_name is None:
+            raise ValueError("Provide either path_or_name or dataset")
+
+        self._streaming = streaming
         local_path = Path(path_or_name)
 
         # Case 1: The path is a local directory.
@@ -101,6 +118,13 @@ class HFDataSource:
                 split=split,
                 streaming=streaming,
             )
+
+    @classmethod
+    def from_hf_dataset(
+        cls, dataset: HFDataset | HFIterableDataset, text_column: str = "text"
+    ) -> "HFDataSource":
+        """Wrap an already-loaded HF Dataset. Goes through __init__."""
+        return cls(dataset=dataset, text_column=text_column)
 
     def get_dataloaders(
         self,

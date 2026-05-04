@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 import torch
+from datasets import Dataset as HFDataset
 from torch.utils.data import DataLoader
 
 from scratchgpt.data.hf_datasource import HFDataSource
@@ -275,3 +276,22 @@ def test_sliding_vs_chunking_sample_count(multiline_text_file, simple_tokenizer)
     slide_batch = next(iter(slide_train))
     assert chunk_batch["input_ids"].shape[1] == block_size
     assert slide_batch["input_ids"].shape[1] == block_size
+
+
+def test_hf_datasource_init_accepts_preloaded_dataset() -> None:
+    ds = HFDataset.from_dict({"text": ["hello", "world"]})
+    source = HFDataSource(dataset=ds, text_column="text")
+    assert source._dataset is ds  # noqa: SLF001
+    assert source._text_column == "text"  # noqa: SLF001
+    assert source._streaming is False  # noqa: SLF001
+
+
+def test_hf_datasource_from_hf_dataset_factory() -> None:
+    ds = HFDataset.from_dict({"text": ["hello", "world"]})
+    source = HFDataSource.from_hf_dataset(ds, text_column="text")
+    assert source._dataset is ds  # noqa: SLF001
+
+
+def test_hf_datasource_init_requires_path_or_dataset() -> None:
+    with pytest.raises(ValueError):
+        HFDataSource()

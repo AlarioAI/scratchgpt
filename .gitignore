@@ -6,3 +6,7 @@ experiments
 solutions
 scratch_gpt.yaml
 scratchpad/
+
+# Private planning / working notes — kept local, never committed
+docs/superpowers/
+

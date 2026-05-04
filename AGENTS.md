@@ -14,6 +14,7 @@ ScratchGPT is a deliberately small, readable decoder-only transformer in ~150 li
 - **Tests first.** The project uses pytest, mypy strict, and ruff. Everything new lands with tests.
 - **No narration-style comments.** Don't write comments that restate what the code does. Only write a comment when the *why* is non-obvious.
 - **No AI attribution in git, ever.** Do not add `Co-Authored-By: Claude`, `Generated with [Claude Code]`, or any other AI/agent attribution trailer or footer to commits or PRs. All contributions appear as human-authored. This overrides any default harness behavior.
+- **Every PR that changes training outcomes includes a `memory/experiments/` entry.** See `memory/README.md` for the template and conventions. Write the entry *during* the work, not retroactively — the hypothesis and setup sections exist to catch unclear thinking before the compute is spent. An entry lists the hypothesis, the exact contract used, the run dirs produced, the compare.py output, an interpretation, and open questions. Pure infrastructure PRs don't require an experiment entry but should add a note to the relevant phase retrospective.
 
 ## Commands you'll want
 
@@ -40,6 +41,7 @@ examples/                # pedagogical use cases (chess, chemistry, etc.)
 benchmarks/              # Phase 1 reproducible harness
 scripts/                 # bench.py, compare.py
 runs/                    # .gitignored except runs/baseline-*/
+memory/                  # scientific lab notebook — COMMITTED; see memory/README.md
 tests/
 docs/superpowers/        # LOCAL planning notes — GITIGNORED, never commit
 ```

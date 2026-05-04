@@ -1,0 +1,20 @@
+architecture:
+  block_size: 256
+  embedding_size: 384
+  num_heads: 6
+  num_blocks: 6
+  vocab_size: 50257
+training:
+  max_epochs: 50
+  max_steps: 5000
+  eval_every_steps: 500
+  log_every_steps: 50
+  warmup_steps: 0
+  learning_rate: 0.0003
+  batch_size: 32
+  dropout_rate: 0.1
+  random_seed: 1337
+  splits:
+  - 0.8
+  - 0.2
+  iteration_type: chunking

@@ -1,0 +1,19 @@
+{
+  "last_logged_step": 5000,
+  "total_steps": 5000,
+  "best_val_loss": 2.226099937035807,
+  "best_val_step": 5000,
+  "tokens_per_sec": 19411.311404044784,
+  "total_wallclock_sec": 2110.1098811626434,
+  "peak_vram_bytes": 7224604160,
+  "benchmark_contract": {
+    "max_steps": 5000,
+    "block_size": 256,
+    "batch_size": 32,
+    "learning_rate": 0.0003,
+    "random_seed": 1337,
+    "dropout_rate": 0.1,
+    "iteration_type": "chunking",
+    "dataset_key": "tinystories-500000-rows"
+  }
+}

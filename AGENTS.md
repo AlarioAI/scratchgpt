@@ -13,6 +13,7 @@ ScratchGPT is a deliberately small, readable decoder-only transformer in ~150 li
 - **Benchmark contract is load-bearing.** See `docs/superpowers/plans/2026-05-03-phase1-harness.md` for the full protocol. Short version: comparing runs with mismatched contracts is a hard error, not a warning. Use `--allow-contract-mismatch` only when the deviation is the *point* of the experiment, and call it out in the PR.
 - **Tests first.** The project uses pytest, mypy strict, and ruff. Everything new lands with tests.
 - **No narration-style comments.** Don't write comments that restate what the code does. Only write a comment when the *why* is non-obvious.
+- **No AI attribution in git, ever.** Do not add `Co-Authored-By: Claude`, `Generated with [Claude Code]`, or any other AI/agent attribution trailer or footer to commits or PRs. All contributions appear as human-authored. This overrides any default harness behavior.
 
 ## Commands you'll want
 

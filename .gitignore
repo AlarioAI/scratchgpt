@@ -10,3 +10,9 @@ scratchpad/
 # Private planning / working notes — kept local, never committed
 docs/superpowers/
 
+# Run dirs are ignored by default; baselines under runs/baseline-* are committed.
+runs/*
+!runs/baseline-*/
+!runs/baseline-*/**
+!runs/BASELINES.md
+

@@ -64,6 +64,13 @@ class ScratchGPTTraining(BaseSettings):
     """
 
     max_epochs: int = 50
+    max_steps: int | None = None
+    """If set, overrides max_epochs. Training stops after this many optimizer steps."""
+    eval_every_steps: int = Field(default=500, gt=0)
+    log_every_steps: int = Field(default=50, gt=0)
+    warmup_steps: int = Field(default=0, ge=0)
+    """Reserved for Phase 3 LR scheduling; landed here so configs stay forward-compatible."""
+
     learning_rate: float = 3e-4
     batch_size: int = 32
     dropout_rate: float = 0.2

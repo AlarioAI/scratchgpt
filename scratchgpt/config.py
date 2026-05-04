@@ -40,6 +40,21 @@ class ScratchGPTArchitecture(BaseSettings):
     num_blocks: int = 6
     vocab_size: int | None = None
 
+    # --- Phase 2 flags. Defaults preserve Phase 1 baseline numerics. ---
+    attention_scale_mode: Literal["embedding", "head"] = "embedding"
+    """Attention softmax temperature: 'embedding' (Phase 1 bug, 1/sqrt(C)) or 'head' (correct, 1/sqrt(head_size))."""
+    ffn_activation: Literal["relu", "gelu"] = "relu"
+    tie_weights: bool = False
+    """Share the token embedding matrix with the lm_head (weight tying)."""
+    init_scheme: Literal["default", "gpt2"] = "default"
+    """
+    Parameter initialization. 'gpt2' applies N(0, 0.02) init plus
+    1/sqrt(2*num_blocks) scaling on residual projections.
+    """
+    use_bias: bool = True
+    """If False, removes bias from Linear and LayerNorm modules in the transformer blocks."""
+    # --- end Phase 2 flags ---
+
     @model_validator(mode="after")
     def validate_embedding_and_heads(self) -> Self:
         """

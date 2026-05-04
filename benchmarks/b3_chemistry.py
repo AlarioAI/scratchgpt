@@ -6,7 +6,7 @@ from pathlib import Path
 import torch
 from datasets import load_dataset
 
-from benchmarks._shared import build_standard_config, run_benchmark
+from benchmarks._shared import build_standard_config, parse_arch_overrides, run_benchmark
 from scratchgpt.data import create_data_source
 from scratchgpt.tokenizer.char_tokenizer import CharTokenizer
 
@@ -16,6 +16,8 @@ def main() -> None:
     p.add_argument("--runs-dir", type=Path, default=Path("runs"))
     p.add_argument("--slug", type=str, default="b3-chemistry")
     p.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
+    p.add_argument("--arch-override", action="append", default=None,
+                   help="Architecture flag override as KEY=VALUE; may repeat.")
     args = p.parse_args()
 
     print("Loading USPTO-50k...")
@@ -38,7 +40,10 @@ def main() -> None:
         tokenizer = CharTokenizer(text=text)
         data_source = create_data_source(str(data_file))
 
-        config = build_standard_config(vocab_size=tokenizer.vocab_size)
+        config = build_standard_config(
+            vocab_size=tokenizer.vocab_size,
+            arch_overrides=parse_arch_overrides(args.arch_override),
+        )
         run_benchmark(
             slug=args.slug, data_source=data_source, tokenizer=tokenizer,
             config=config, runs_dir=args.runs_dir, device=torch.device(args.device),

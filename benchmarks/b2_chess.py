@@ -5,7 +5,7 @@ from pathlib import Path
 
 import torch
 
-from benchmarks._shared import build_standard_config, cached_chess_corpus, run_benchmark
+from benchmarks._shared import build_standard_config, cached_chess_corpus, parse_arch_overrides, run_benchmark
 from examples.chess import DEFAULT_LICHESS_URL
 from examples.chess_tokenizer import ChessTokenizer
 from scratchgpt.data import create_data_source
@@ -18,6 +18,8 @@ def main() -> None:
     p.add_argument("--game-url", type=str, default=DEFAULT_LICHESS_URL)
     p.add_argument("--max-games", type=int, default=50_000)
     p.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
+    p.add_argument("--arch-override", action="append", default=None,
+                   help="Architecture flag override as KEY=VALUE; may repeat.")
     args = p.parse_args()
 
     games_text = cached_chess_corpus(args.game_url, args.max_games)
@@ -29,7 +31,10 @@ def main() -> None:
         data_source = create_data_source(str(games_file))
         tokenizer = ChessTokenizer()
 
-        config = build_standard_config(vocab_size=tokenizer.vocab_size)
+        config = build_standard_config(
+            vocab_size=tokenizer.vocab_size,
+            arch_overrides=parse_arch_overrides(args.arch_override),
+        )
         url_tail = args.game_url.rsplit("/", 1)[-1].replace(".zst", "")
         run_benchmark(
             slug=args.slug, data_source=data_source, tokenizer=tokenizer,

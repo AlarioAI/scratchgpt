@@ -2,6 +2,7 @@
 import hashlib
 import os
 from pathlib import Path
+from typing import Any
 
 import torch
 from torch.optim import AdamW
@@ -19,13 +20,20 @@ STANDARD_EVAL_EVERY = 500
 STANDARD_LOG_EVERY = 50
 
 
-def build_standard_config(vocab_size: int) -> ScratchGPTConfig:
-    """Config used by every Phase 1 baseline. Phase 2+ will override pieces."""
+def build_standard_config(
+    vocab_size: int,
+    arch_overrides: dict[str, Any] | None = None,
+) -> ScratchGPTConfig:
+    """Config used by every Phase 1 baseline. Phase 2+ passes arch_overrides
+    to flip architecture flags per experiment without editing this file."""
+    arch_kwargs: dict[str, Any] = {
+        "block_size": 256, "embedding_size": 384, "num_heads": 6, "num_blocks": 6,
+        "vocab_size": vocab_size,
+    }
+    if arch_overrides:
+        arch_kwargs.update(arch_overrides)
     return ScratchGPTConfig(
-        architecture=ScratchGPTArchitecture(
-            block_size=256, embedding_size=384, num_heads=6, num_blocks=6,
-            vocab_size=vocab_size,
-        ),
+        architecture=ScratchGPTArchitecture(**arch_kwargs),
         training=ScratchGPTTraining(
             max_steps=STANDARD_STEPS,
             eval_every_steps=STANDARD_EVAL_EVERY,
@@ -66,6 +74,32 @@ def run_benchmark(
     trainer.train(data_source=data_source, tokenizer=tokenizer)
     print(f"Run complete: {recorder.run_dir}")
     return recorder.run_dir
+
+
+def parse_arch_overrides(raw: list[str] | None) -> dict[str, Any]:
+    """Parse a list of KEY=VALUE strings into an arch_overrides dict.
+
+    Booleans are normalised from {"true", "false"} (case-insensitive). Integers
+    are parsed when the value is all digits. Everything else stays a string so
+    that Literal-valued fields like attention_scale_mode="head" round-trip.
+    """
+    if not raw:
+        return {}
+    overrides: dict[str, Any] = {}
+    for item in raw:
+        if "=" not in item:
+            raise ValueError(f"--arch-override expects KEY=VALUE, got: {item!r}")
+        key, value = item.split("=", 1)
+        lowered = value.lower()
+        parsed: Any
+        if lowered in ("true", "false"):
+            parsed = lowered == "true"
+        elif value.lstrip("-").isdigit():
+            parsed = int(value)
+        else:
+            parsed = value
+        overrides[key] = parsed
+    return overrides
 
 
 def cached_chess_corpus(game_url: str, max_games: int) -> str:

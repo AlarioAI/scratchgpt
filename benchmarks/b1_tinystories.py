@@ -5,7 +5,7 @@ from pathlib import Path
 import torch
 from datasets import load_dataset
 
-from benchmarks._shared import build_standard_config, run_benchmark
+from benchmarks._shared import build_standard_config, parse_arch_overrides, run_benchmark
 from scratchgpt.data.hf_datasource import HFDataSource
 from scratchgpt.tokenizer.hf_tokenizer import HuggingFaceTokenizer
 
@@ -17,6 +17,8 @@ def main() -> None:
     p.add_argument("--subset-size", type=int, default=500_000,
                    help="Number of TinyStories rows to use (0 = all)")
     p.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
+    p.add_argument("--arch-override", action="append", default=None,
+                   help="Architecture flag override as KEY=VALUE; may repeat.")
     args = p.parse_args()
 
     print("Loading TinyStories...")
@@ -28,7 +30,10 @@ def main() -> None:
     tokenizer = HuggingFaceTokenizer.from_hub("gpt2")
     data_source = HFDataSource.from_hf_dataset(ds, text_column="text")
 
-    config = build_standard_config(vocab_size=tokenizer.vocab_size)
+    config = build_standard_config(
+        vocab_size=tokenizer.vocab_size,
+        arch_overrides=parse_arch_overrides(args.arch_override),
+    )
     run_benchmark(
         slug=args.slug, data_source=data_source, tokenizer=tokenizer,
         config=config, runs_dir=args.runs_dir, device=torch.device(args.device),

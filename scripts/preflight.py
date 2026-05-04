@@ -1,12 +1,18 @@
 """One-off script: run current-main training for 200 steps on TinyStories to confirm baseline reproducibility."""
+import tempfile
 import time
 from pathlib import Path
-import tempfile
+
 import torch
 from torch.optim import AdamW
+
 from scratchgpt import (
-    CharTokenizer, ScratchGPTArchitecture, ScratchGPTConfig,
-    ScratchGPTTraining, Trainer, TransformerLanguageModel,
+    CharTokenizer,
+    ScratchGPTArchitecture,
+    ScratchGPTConfig,
+    ScratchGPTTraining,
+    Trainer,
+    TransformerLanguageModel,
 )
 from scratchgpt.data import create_data_source
 

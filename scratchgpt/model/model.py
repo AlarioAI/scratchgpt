@@ -67,7 +67,7 @@ class MultiHeadAttention(nn.Module):
         return out
 
 
-class FeedFoward(nn.Module):
+class FeedForward(nn.Module):
     def __init__(self, embedding_size: int, dropout_rate: float) -> None:
         super().__init__()
         self._ffwd_multipler = 4
@@ -101,7 +101,7 @@ class Block(nn.Module):
             head_size,
             dropout_rate,
         )
-        self._ffwd = FeedFoward(embedding_size, dropout_rate)
+        self._ffwd = FeedForward(embedding_size, dropout_rate)
         self._layer_norm_attention = nn.LayerNorm(embedding_size)
         self._layer_norm_ffwd = nn.LayerNorm(embedding_size)
 

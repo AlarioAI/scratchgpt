@@ -7,6 +7,7 @@ from scratchgpt.config import (
     ScratchGPTConfig,
     ScratchGPTTraining,
 )
+from scratchgpt.data import create_data_source
 from scratchgpt.data.datasource import DataSource
 from scratchgpt.data.hf_datasource import HFDataSource
 from scratchgpt.model.model import TransformerLanguageModel
@@ -38,6 +39,7 @@ __all__ = [
     # Data Sources
     "DataSource",
     "HFDataSource",
+    "create_data_source",
     # Model I/O
     "load_model",
     "load_tokenizer",

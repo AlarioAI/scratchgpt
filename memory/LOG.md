@@ -11,4 +11,5 @@ Append-only chronological index of memory entries. Newest at the bottom.
 2026-05-04  findings/2026-05-04-b1-vocab-throughput.md          B1 is 4x slower per token because the GPT-2 lm_head dominates
 2026-05-04  findings/2026-05-04-b3-charlevel-floor.md           B3 val_loss=0.28 is a char-level floor, not a hard target
 2026-05-04  experiments/2026-05-04-exp1-attention-scale-fix.md  Exp-1: attention_scale_mode=head ships as default (-1.84% on B3, -0.27% on B1, flat on B2)
+2026-05-05  experiments/2026-05-04-exp2-gelu.md                 Exp-2: ffn_activation=gelu ships as default (-3.25% on B3, -2.83% on B1, flat on B2, +4-15% VRAM)
 ```

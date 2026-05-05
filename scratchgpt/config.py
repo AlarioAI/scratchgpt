@@ -47,7 +47,11 @@ class ScratchGPTArchitecture(BaseSettings):
     'embedding' uses the Phase 1 bug 1/sqrt(embedding_size) and is kept opt-in
     for reproducing pre-Phase-2 baselines.
     """
-    ffn_activation: Literal["relu", "gelu"] = "relu"
+    ffn_activation: Literal["relu", "gelu"] = "gelu"
+    """
+    FFN nonlinearity. 'gelu' is the modern default (GPT-2+); 'relu' is kept
+    opt-in for reproducing pre-Phase-2 baselines.
+    """
     tie_weights: bool = False
     """Share the token embedding matrix with the lm_head (weight tying)."""
     init_scheme: Literal["default", "gpt2"] = "default"

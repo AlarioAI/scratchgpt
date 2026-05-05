@@ -43,3 +43,14 @@ The lm_head is a shallow but extremely wide operation that a six-layer transform
 - **This finding also explains why B1's val_loss is higher in absolute terms than B2/B3** — not really, actually. Val loss being higher on TinyStories vs. chess isn't a throughput story; it's an entropy story (natural language is higher-entropy than chess moves at the tokenization granularity used). Keeping that separate from this throughput observation to avoid conflating two things.
 
 - **Future benchmarks that use small vocabularies will train much faster** than natural-language ones at the same architecture. If we add a protein-sequence or a music-notation benchmark later, plan wallclock accordingly.
+
+---
+
+## Correction (2026-05-05, Exp-3)
+
+`memory/experiments/2026-05-05-exp3-weight-tying.md` falsified two claims in the Implications section above:
+
+1. **The "weight tying first" recommendation is wrong without compatible initialization.** Standalone `tie_weights=True` under PyTorch defaults *regressed* val_loss by 52% on B1, 36% on B2, and 28% on B3. The mechanism is an init-scale mismatch between `nn.Embedding` (N(0, 1)) and `nn.Linear` (std ≈ 0.029), which destroys the output projection's scale at step 0 when they're aliased. Any future tying experiment must pair the flag with a compatible init scheme (e.g. `init_scheme="gpt2"`, or any init that matches Linear's scale on both tied modules).
+2. **The throughput-gain reasoning was wrong.** Weight tying reduces parameters and Adam state but does not touch the dominant B1 costs: the output matmul (`B*T*E*V` FLOPs), the logits tensor (`B*T*V` activation memory), or the softmax over 50k classes. Those three are compute and activation-memory concerns, largely decoupled from parameter count. The right framing is "the lm_head dominates because of compute and activation memory *at* the output head," not "because of parameter count." Param savings from tying are real but small relative to the compute that wasn't touched.
+
+The other observations in this finding (output projection FLOPs, softmax cost, VRAM breakdown, wallclock implications for small-vocab benchmarks) stand unchanged. Only the Implications "weight tying first" and "throughput win" predictions are superseded by Exp-3.

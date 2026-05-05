@@ -14,4 +14,5 @@ Append-only chronological index of memory entries. Newest at the bottom.
 2026-05-05  experiments/2026-05-04-exp2-gelu.md                 Exp-2: ffn_activation=gelu ships as default (-3.25% on B3, -2.83% on B1, flat on B2, +4-15% VRAM)
 2026-05-05  experiments/2026-05-05-exp3-weight-tying.md         Exp-3: tie_weights=True standalone REJECTED (+52% val_loss on B1); init-mismatch bug, must pair with compatible init
 2026-05-05  experiments/2026-05-05-exp4-gpt2-init.md            Exp-4: init_scheme=gpt2 ships as default; largest Phase 2 win (-11.27% B1, -6.29% B2, -9.45% B3 cumulative)
+2026-05-05  phases/2026-05-05-phase2-progress.md                Phase 2 mid-phase handoff note: state, protocol, pending work, and entry points for resuming
 ```

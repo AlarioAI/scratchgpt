@@ -29,14 +29,16 @@ def test_architecture_defaults_reflect_phase2_decisions() -> None:
     arch = ScratchGPTArchitecture(vocab_size=256)
     # Phase 2 Exp-1 flipped attention_scale_mode default to "head".
     # Phase 2 Exp-2 flipped ffn_activation default to "gelu".
-    # Both "embedding" and "relu" remain available for reproducing pre-Phase-2
-    # baselines. See memory/experiments/2026-05-04-exp{1,2}-*.md.
+    # Phase 2 Exp-3 rejected tie_weights=True as standalone (kept False).
+    # Phase 2 Exp-4 flipped init_scheme default to "gpt2" (largest Phase 2 win).
+    # "embedding", "relu", and "default" all remain available for reproducing
+    # pre-Phase-2 baselines. See memory/experiments/2026-05-0{4,5}-exp*.md.
     assert arch.attention_scale_mode == "head"
     assert arch.ffn_activation == "gelu"
+    assert arch.tie_weights is False
+    assert arch.init_scheme == "gpt2"
     # Remaining flags: defaults still preserve Phase 1 numerics pending their
     # own ablation experiments.
-    assert arch.tie_weights is False
-    assert arch.init_scheme == "default"
     assert arch.use_bias is True
 
 

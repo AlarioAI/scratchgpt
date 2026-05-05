@@ -62,10 +62,12 @@ class ScratchGPTArchitecture(BaseSettings):
     """
     tie_weights: bool = False
     """Share the token embedding matrix with the lm_head (weight tying)."""
-    init_scheme: Literal["default", "gpt2"] = "default"
+    init_scheme: Literal["default", "gpt2"] = "gpt2"
     """
     Parameter initialization. 'gpt2' applies N(0, 0.02) init plus
-    1/sqrt(2*num_blocks) scaling on residual projections.
+    1/sqrt(2*num_blocks) scaling on residual projections. 'default' falls
+    back to PyTorch's built-in init (kept opt-in for reproducing pre-Phase-2
+    baselines).
     """
     use_bias: bool = True
     """If False, removes bias from Linear and LayerNorm modules in the transformer blocks."""

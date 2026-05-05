@@ -8,6 +8,7 @@ from pydantic_settings import (
     SettingsConfigDict,
     YamlConfigSettingsSource,
 )
+from torch import nn
 
 
 def ensure_split_is_valid(v: tuple[float, float]) -> tuple[float, float]:
@@ -26,6 +27,13 @@ def ensure_split_is_valid(v: tuple[float, float]) -> tuple[float, float]:
 
 
 SplitType = Annotated[tuple[float, float], AfterValidator(ensure_split_is_valid)]
+
+
+# Module-level dispatch table. Adding a new activation is one entry here.
+_ACTIVATIONS: dict[str, type[nn.Module]] = {
+    "relu": nn.ReLU,
+    "gelu": nn.GELU,
+}
 
 
 class ScratchGPTArchitecture(BaseSettings):
@@ -74,6 +82,20 @@ class ScratchGPTArchitecture(BaseSettings):
                 f"must be divisible by num_heads ({self.num_heads})."
             )
         return self
+
+    def make_activation(self) -> nn.Module:
+        """Instantiate the FFN activation module selected by ffn_activation."""
+        return _ACTIVATIONS[self.ffn_activation]()
+
+    def attention_scale_for(self, head_size: int) -> float:
+        """Compute the per-head attention scale scalar based on attention_scale_mode.
+
+        'head' (textbook): 1/sqrt(head_size). 'embedding' (Phase 1 bug, opt-in
+        for reproducibility): 1/sqrt(embedding_size).
+        """
+        if self.attention_scale_mode == "head":
+            return 1.0 / math.sqrt(head_size)
+        return 1.0 / math.sqrt(self.embedding_size)
 
     model_config = SettingsConfigDict(
         env_prefix="ARCHITECTURE_",

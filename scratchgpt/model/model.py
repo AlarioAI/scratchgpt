@@ -1,5 +1,6 @@
 import math
-from typing import Any, Literal
+from collections.abc import Callable
+from typing import Any
 
 import torch
 from ptflops import get_model_complexity_info
@@ -16,7 +17,7 @@ class Head(nn.Module):
         block_size: int,
         head_size: int,
         dropout_rate: float,
-        scale_mode: Literal["embedding", "head"] = "embedding",
+        attention_scale: float,
     ) -> None:
         super().__init__()
 
@@ -25,7 +26,7 @@ class Head(nn.Module):
         self._value = nn.Linear(embedding_size, head_size, bias=False)
         self._dropout = nn.Dropout(dropout_rate)
         self.register_buffer("tril", torch.tril(torch.ones(block_size, block_size)))
-        self._attention_scale = 1.0 / math.sqrt(embedding_size if scale_mode == "embedding" else head_size)
+        self._attention_scale = attention_scale
 
     def forward(self, context: Tensor) -> Tensor:
         B, T, _ = context.shape
@@ -56,12 +57,12 @@ class MultiHeadAttention(nn.Module):
         block_size: int,
         head_size: int,
         dropout_rate: float,
-        scale_mode: Literal["embedding", "head"] = "embedding",
-        use_bias: bool = True,
+        attention_scale: float,
+        use_bias: bool,
     ) -> None:
         super().__init__()
         self._heads = nn.ModuleList(
-            Head(embedding_size, block_size, head_size, dropout_rate, scale_mode) for _ in range(num_heads)
+            Head(embedding_size, block_size, head_size, dropout_rate, attention_scale) for _ in range(num_heads)
         )
         self._proj = nn.Linear(embedding_size, embedding_size, bias=use_bias)
         self._proj._is_residual_projection = True  # type: ignore[assignment]
@@ -79,13 +80,12 @@ class FeedForward(nn.Module):
         self,
         embedding_size: int,
         dropout_rate: float,
-        activation_name: Literal["relu", "gelu"] = "relu",
-        use_bias: bool = True,
+        activation: nn.Module,
+        use_bias: bool,
     ) -> None:
         super().__init__()
         self._ffwd_multipler = 4
 
-        activation: nn.Module = nn.ReLU() if activation_name == "relu" else nn.GELU()
         self._net = nn.Sequential(
             nn.Linear(embedding_size, embedding_size * self._ffwd_multipler, bias=use_bias),
             activation,
@@ -106,9 +106,9 @@ class Block(nn.Module):
         embedding_size: int,
         block_size: int,
         dropout_rate: float,
-        scale_mode: Literal["embedding", "head"] = "embedding",
-        activation_name: Literal["relu", "gelu"] = "relu",
-        use_bias: bool = True,
+        attention_scale: float,
+        activation: nn.Module,
+        use_bias: bool,
     ) -> None:
         super().__init__()
         head_size = embedding_size // num_heads
@@ -118,10 +118,10 @@ class Block(nn.Module):
             block_size,
             head_size,
             dropout_rate,
-            scale_mode,
-            use_bias,
+            attention_scale=attention_scale,
+            use_bias=use_bias,
         )
-        self._ffwd = FeedForward(embedding_size, dropout_rate, activation_name, use_bias)
+        self._ffwd = FeedForward(embedding_size, dropout_rate, activation, use_bias)
         self._layer_norm_attention = nn.LayerNorm(embedding_size, bias=use_bias)
         self._layer_norm_ffwd = nn.LayerNorm(embedding_size, bias=use_bias)
 
@@ -133,6 +133,35 @@ class Block(nn.Module):
         normal_tensor = self._layer_norm_ffwd(tensor)
         tensor = tensor + self._ffwd(normal_tensor)
         return tensor
+
+
+def _init_default(model: nn.Module, num_blocks: int) -> None:
+    """No-op: leaves torch's default initialization intact."""
+
+
+def _init_gpt2(model: nn.Module, num_blocks: int) -> None:
+    """GPT-2 init: N(0, 0.02) on Linear/Embedding weights, zero bias on Linear,
+    then scale residual projections (tagged _is_residual_projection) by 1/sqrt(2*num_blocks)."""
+
+    def _init_module(m: nn.Module) -> None:
+        if isinstance(m, nn.Linear):
+            torch.nn.init.normal_(m.weight, mean=0.0, std=0.02)
+            if m.bias is not None:
+                torch.nn.init.zeros_(m.bias)
+        elif isinstance(m, nn.Embedding):
+            torch.nn.init.normal_(m.weight, mean=0.0, std=0.02)
+
+    model.apply(_init_module)
+    scale = 1.0 / math.sqrt(2 * num_blocks)
+    for module in model.modules():
+        if isinstance(module, nn.Linear) and getattr(module, "_is_residual_projection", False):
+            module.weight.data.mul_(scale)
+
+
+INIT_SCHEMES: dict[str, Callable[[nn.Module, int], None]] = {
+    "default": _init_default,
+    "gpt2": _init_gpt2,
+}
 
 
 class TransformerLanguageModel(nn.Module):
@@ -151,15 +180,19 @@ class TransformerLanguageModel(nn.Module):
             arch.block_size,
             arch.embedding_size,
         )
+
+        head_size = arch.embedding_size // arch.num_heads
+        attention_scale = arch.attention_scale_for(head_size)
+
         self._blocks = nn.Sequential(
             *[
                 Block(
-                    arch.num_heads,
-                    arch.embedding_size,
-                    arch.block_size,
-                    training.dropout_rate,
-                    scale_mode=arch.attention_scale_mode,
-                    activation_name=arch.ffn_activation,
+                    num_heads=arch.num_heads,
+                    embedding_size=arch.embedding_size,
+                    block_size=arch.block_size,
+                    dropout_rate=training.dropout_rate,
+                    attention_scale=attention_scale,
+                    activation=arch.make_activation(),
                     use_bias=arch.use_bias,
                 )
                 for _ in range(arch.num_blocks)
@@ -168,24 +201,10 @@ class TransformerLanguageModel(nn.Module):
         self._block_norm = nn.LayerNorm(arch.embedding_size, bias=arch.use_bias)
         self._lm_head = nn.Linear(arch.embedding_size, arch.vocab_size, bias=arch.use_bias)
 
+        # Post-build transforms.
         if arch.tie_weights:
             self._lm_head.weight = self._token_embedding_table.weight
-
-        if arch.init_scheme == "gpt2":
-            self.apply(self._init_weights)
-            # GPT-2 "residual scaling": dampen residual projections by 1/sqrt(2*N_blocks).
-            scale = 1.0 / math.sqrt(2 * arch.num_blocks)
-            for module in self.modules():
-                if isinstance(module, nn.Linear) and getattr(module, "_is_residual_projection", False):
-                    module.weight.data.mul_(scale)
-
-    def _init_weights(self, module: nn.Module) -> None:
-        if isinstance(module, nn.Linear):
-            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
-            if module.bias is not None:
-                torch.nn.init.zeros_(module.bias)
-        elif isinstance(module, nn.Embedding):
-            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+        INIT_SCHEMES[arch.init_scheme](self, arch.num_blocks)
 
     def forward(self, context: Tensor) -> Tensor:
         context = context.long()

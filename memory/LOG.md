@@ -15,4 +15,5 @@ Append-only chronological index of memory entries. Newest at the bottom.
 2026-05-05  experiments/2026-05-05-exp3-weight-tying.md         Exp-3: tie_weights=True standalone REJECTED (+52% val_loss on B1); init-mismatch bug, must pair with compatible init
 2026-05-05  experiments/2026-05-05-exp4-gpt2-init.md            Exp-4: init_scheme=gpt2 ships as default; largest Phase 2 win (-11.27% B1, -6.29% B2, -9.45% B3 cumulative)
 2026-05-05  phases/2026-05-05-phase2-progress.md                Phase 2 mid-phase handoff note: state, protocol, pending work, and entry points for resuming
+2026-05-09  experiments/2026-05-09-exp5-no-bias.md              Exp-5: use_bias=false REJECTED; small consistent marginal regression (+0.60% B1, +0.19% B2, +0.28% B3)
 ```

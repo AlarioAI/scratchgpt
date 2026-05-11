@@ -8,6 +8,7 @@ from torch import Tensor, nn
 from torch.nn import functional as F
 
 from scratchgpt.config import ScratchGPTConfig
+from scratchgpt.model.sampling import SamplingConfig, sample_next_token
 
 
 class Head(nn.Module):
@@ -224,13 +225,20 @@ class TransformerLanguageModel(nn.Module):
         max_new_tokens: int,
         stop_token: int | None = None,
         temperature: float = 1.0,
+        top_k: int | None = None,
+        top_p: float | None = None,
+        repetition_penalty: float = 1.0,
     ) -> Tensor:
+        sampling = SamplingConfig(
+            temperature=temperature,
+            top_k=top_k,
+            top_p=top_p,
+            repetition_penalty=repetition_penalty,
+        )
         for _ in range(max_new_tokens):
             cropped_context = context[:, -self._block_size :]
-            logits = self(cropped_context)
-            logits = logits[:, -1, :] / temperature  # becomes (B, C)
-            probs = F.softmax(logits, dim=-1)
-            idx_next = torch.multinomial(probs, num_samples=1)
+            logits = self(cropped_context)[:, -1, :]
+            idx_next = sample_next_token(logits, context, sampling)
             context = torch.cat((context, idx_next), dim=1)
 
             if stop_token is not None and idx_next == stop_token:

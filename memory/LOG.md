@@ -18,4 +18,6 @@ Append-only chronological index of memory entries. Newest at the bottom.
 2026-05-09  experiments/2026-05-09-exp5-no-bias.md              Exp-5: use_bias=false REJECTED; small consistent marginal regression (+0.60% B1, +0.19% B2, +0.28% B3)
 2026-05-09  experiments/2026-05-09-exp6-full-stack.md           Exp-6: full stack rescues tie_weights under GPT-2 init on B1/B2, but no full-stack default flip; run clean tie+init ablation next
 2026-05-14  decisions/2026-05-14-model-first-roadmap.md         Reorder roadmap toward model-first architecture work, benchmark refresh, and paper-grade experiment tracking
+2026-05-14  phases/2026-05-14-phase2-tier1.md                   Phase 2 retrospective: accepted attention-scale, GELU, GPT-2 init; rejected tying/no-bias/full-stack defaults
+2026-05-14  decisions/2026-05-14-phase2-defaults.md             Final Phase 2 architecture defaults for generation-2 baselines and future comparisons
 ```

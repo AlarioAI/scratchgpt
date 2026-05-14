@@ -37,8 +37,7 @@ def test_architecture_defaults_reflect_phase2_decisions() -> None:
     assert arch.ffn_activation == "gelu"
     assert arch.tie_weights is False
     assert arch.init_scheme == "gpt2"
-    # Remaining flags: defaults still preserve Phase 1 numerics pending their
-    # own ablation experiments.
+    # Phase 2 Exp-5 rejected use_bias=False (kept True).
     assert arch.use_bias is True
 
 

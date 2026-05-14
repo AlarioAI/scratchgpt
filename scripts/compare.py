@@ -8,7 +8,7 @@ dataset_key) -- otherwise the comparison is meaningless. Override with
 --allow-contract-mismatch for deliberate cross-budget comparisons.
 
 Usage:
-  python scripts/compare.py runs/baseline-b1 runs/20260504-*-gelu
+  python scripts/compare.py runs/baseline-p2-b1-tinystories runs/20260504-*-gelu
 """
 import argparse
 import json

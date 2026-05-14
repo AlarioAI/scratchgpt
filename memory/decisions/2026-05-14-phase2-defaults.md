@@ -44,7 +44,7 @@ The final accepted default state is Exp-4, not Exp-6.
 
 ## Expected consequences
 
-Generation-2 canonical baselines should be trained with the final accepted default state:
+Generation-2 canonical baselines are trained with the final accepted default state:
 
 ```text
 attention_scale_mode = "head"
@@ -54,7 +54,7 @@ tie_weights = false
 use_bias = true
 ```
 
-Future architecture experiments should compare against those generation-2 baselines unless the benchmark contract itself changes. If the benchmark suite is refreshed for model-first research, that refresh needs its own decision entry and a new baseline generation label.
+Future architecture experiments should compare against `runs/baseline-p2-*` unless the benchmark contract itself changes. If the benchmark suite is refreshed for model-first research, that refresh needs its own decision entry and a new baseline generation label.
 
 ## How we'd know if this was wrong
 

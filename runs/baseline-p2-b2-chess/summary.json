@@ -1,0 +1,19 @@
+{
+  "last_logged_step": 5000,
+  "total_steps": 5000,
+  "best_val_loss": 2.018843753249558,
+  "best_val_step": 5000,
+  "tokens_per_sec": 142864.83141954997,
+  "total_wallclock_sec": 286.7045695781708,
+  "peak_vram_bytes": 3448250880,
+  "benchmark_contract": {
+    "max_steps": 5000,
+    "block_size": 256,
+    "batch_size": 32,
+    "learning_rate": 0.0003,
+    "random_seed": 1337,
+    "dropout_rate": 0.1,
+    "iteration_type": "chunking",
+    "dataset_key": "lichess-lichess_db_standard_rated_2016-02.pgn-first-50000"
+  }
+}

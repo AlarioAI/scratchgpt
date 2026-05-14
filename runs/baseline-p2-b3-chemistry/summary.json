@@ -1,0 +1,19 @@
+{
+  "last_logged_step": 5000,
+  "total_steps": 5000,
+  "best_val_loss": 0.2515022334066569,
+  "best_val_step": 5000,
+  "tokens_per_sec": 141624.95384870903,
+  "total_wallclock_sec": 289.2145690917969,
+  "peak_vram_bytes": 2196191744,
+  "benchmark_contract": {
+    "max_steps": 5000,
+    "block_size": 256,
+    "batch_size": 32,
+    "learning_rate": 0.0003,
+    "random_seed": 1337,
+    "dropout_rate": 0.1,
+    "iteration_type": "chunking",
+    "dataset_key": "uspto-50k-49015-reactions"
+  }
+}

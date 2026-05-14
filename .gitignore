@@ -19,4 +19,4 @@ runs/*
 !runs/baseline-*/env.json
 !runs/baseline-*/config.yaml
 !runs/BASELINES.md
-
+runs/baseline-*/checkpoints/

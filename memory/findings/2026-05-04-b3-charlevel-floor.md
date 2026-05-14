@@ -11,8 +11,8 @@ This is misleading. The absolute loss number reflects a property of the dataset 
 
 ## Evidence
 
-- `runs/baseline-b3-chemistry/summary.json` — `best_val_loss: 0.2772, best_val_step: 5000`.
-- `runs/baseline-b3-chemistry/config.yaml` — uses `CharTokenizer` with vocab size ~60 (exact size depends on characters present in the reaction text).
+- `runs/baseline-p1-b3-chemistry/summary.json` — `best_val_loss: 0.2772, best_val_step: 5000`.
+- `runs/baseline-p1-b3-chemistry/config.yaml` — uses `CharTokenizer` with vocab size 47.
 - Dataset key: `uspto-50k-49015-reactions`. The raw text is 49k reactions in SMILES notation like `CC(=O)O.CCO>>CC(=O)OCC.O` (esterification of acetic acid + ethanol), one per line.
 
 ## Mechanism
@@ -23,7 +23,7 @@ Three compounding reasons a char-level SMILES reaction corpus hits low cross-ent
 
 2. **Character-level SMILES has low local entropy.** After `C` you're very likely to see another `C`, `(`, `=`, or a digit. After `(` you almost always see a `=`, atom, or another `(`. The character-level bigram entropy of SMILES is probably 1–2 bits/char, while English character-level is 3–4 bits/char. A reasonable model should drive cross-entropy per token down close to that intrinsic entropy fairly quickly.
 
-3. **60-character vocabulary.** The cross-entropy loss for a uniform random baseline is `log(60) ≈ 4.1 nats`. For B1 (50k vocab) it's `log(50257) ≈ 10.8 nats`. So B1 starts ~2.6× higher in absolute terms just from vocab size. In normalized terms (loss / log(V), a rough "bits-per-token normalized"), B1 is at 2.2261 / 10.82 ≈ 0.206 and B3 is at 0.2772 / 4.09 ≈ 0.068. Still lower for B3, but less dramatic than the raw numbers suggest.
+3. **47-character vocabulary.** The cross-entropy loss for a uniform random baseline is `log(47) ≈ 3.85 nats`. For B1 (50k vocab) it's `log(50257) ≈ 10.8 nats`. So B1 starts ~2.8× higher in absolute terms just from vocab size. In normalized terms (loss / log(V), a rough "bits-per-token normalized"), B1 is at 2.2261 / 10.82 ≈ 0.206 and B3 is at 0.2772 / 3.85 ≈ 0.072. Still lower for B3, but less dramatic than the raw numbers suggest.
 
 ## Implications
 

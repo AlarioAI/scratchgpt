@@ -57,11 +57,14 @@ runs/*
 !runs/baseline-*/env.json
 !runs/baseline-*/config.yaml
 !runs/BASELINES.md
+runs/baseline-*/checkpoints/
 ```
 
 This ignores everything under `runs/`, then re-includes the baseline directories themselves (so `git add runs/baseline-*/` works on the tracked files), then re-includes the four lightweight artifacts explicitly. Checkpoint blobs remain ignored and require `git add -f` to force-add (which we never want).
 
 Note on the pattern mechanics: an earlier version used `!runs/baseline-*/**` to un-ignore everything in the baseline dir, which would have swept checkpoints into the staging area as soon as someone ran `git add runs/`. That was caught during Phase 1 implementation when `du -sh runs/baseline-*/` showed 670 MB pending. Fixed by making the un-ignore rules explicit per-filename.
+
+Correction on 2026-05-14: a dry-run `git add -n runs/baseline-p2-*` showed that the directory re-include still allowed checkpoint files to be staged. The explicit `runs/baseline-*/checkpoints/` ignore rule above is therefore required. Verified with `git check-ignore -v runs/baseline-p2-b1-tinystories/checkpoints/best.pt`.
 
 ## Expected consequences
 

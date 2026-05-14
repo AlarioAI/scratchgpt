@@ -147,7 +147,7 @@ uv run python benchmarks/b1_tinystories.py --slug my-experiment
 Compare runs:
 
 ```bash
-uv run python scripts/compare.py runs/baseline-b1-tinystories runs/*-my-experiment
+uv run python scripts/compare.py runs/baseline-p2-b1-tinystories runs/*-my-experiment
 ```
 
 Throughput-only check:

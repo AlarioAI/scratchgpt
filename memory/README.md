@@ -37,7 +37,7 @@ memory/
 
 - **Filenames**: `YYYY-MM-DD-<kebab-slug>.md`. The date is when the entry was *written*, not when the work happened — a retrospective written today about last week still gets today's date.
 - **One topic per file.** If an entry starts sprawling, split it.
-- **Link to `runs/` by exact path.** `runs/baseline-b1-tinystories/summary.json` is a permanent reference once committed. Drive-by references to `runs/20260504-*-whatever/` are fine for unfinished work but get canonicalized before the entry is considered complete.
+- **Link to `runs/` by exact path.** `runs/baseline-p1-b1-tinystories/summary.json` is a permanent reference once committed. Drive-by references to `runs/20260504-*-whatever/` are fine for unfinished work but get canonicalized before the entry is considered complete.
 - **Numbers with units.** Loss values carry 4 decimals. Throughput in tokens/sec or it/s. VRAM in MiB or GiB, not bytes. Wallclock in mm:ss or hours.
 - **Prose over prose-style bullet lists.** A five-sentence paragraph with real content beats ten hollow bullets. Bullets for genuinely list-shaped data.
 - **No "see above" or "as mentioned earlier".** Each entry stands on its own — a reader might jump in at any entry.

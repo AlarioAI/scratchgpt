@@ -20,4 +20,5 @@ Append-only chronological index of memory entries. Newest at the bottom.
 2026-05-14  decisions/2026-05-14-model-first-roadmap.md         Reorder roadmap toward model-first architecture work, benchmark refresh, and paper-grade experiment tracking
 2026-05-14  phases/2026-05-14-phase2-tier1.md                   Phase 2 retrospective: accepted attention-scale, GELU, GPT-2 init; rejected tying/no-bias/full-stack defaults
 2026-05-14  decisions/2026-05-14-phase2-defaults.md             Final Phase 2 architecture defaults for generation-2 baselines and future comparisons
+2026-05-14  experiments/2026-05-14-phase2-baselines.md          Generation-2 canonical baselines after accepted Phase 2 defaults
 ```

@@ -33,8 +33,8 @@ Not a hypothesis-driven experiment — this run establishes the reference number
 **Per-benchmark differences:**
 
 - **B1 TinyStories:** `roneneldan/TinyStories` first 500,000 rows. Tokenizer: GPT-2 (50,257 vocab). `dataset_key = "tinystories-500000-rows"`.
-- **B2 Chess:** Lichess `lichess_db_standard_rated_2016-02.pgn.zst`, first 50,000 parsed games. Tokenizer: `examples.chess_tokenizer.ChessTokenizer` (domain-specific, ~200-element vocab). `dataset_key = "lichess-lichess_db_standard_rated_2016-02.pgn-first-50000"`.
-- **B3 Chemistry:** `pingzhili/uspto-50k`, 49,015 reactions after `>>` filter. Tokenizer: `CharTokenizer` (vocab derived from data, ~60 chars). Note: no `[BOS]`/`[EOS]` wrapping because CharTokenizer would split those into 5 tokens of bracket-noise — Phase 5 will introduce a tokenizer that supports special tokens. `dataset_key = "uspto-50k-49015-reactions"`.
+- **B2 Chess:** Lichess `lichess_db_standard_rated_2016-02.pgn.zst`, first 50,000 parsed games. Tokenizer: `examples.chess_tokenizer.ChessTokenizer` (domain-specific, 12,341 vocab). `dataset_key = "lichess-lichess_db_standard_rated_2016-02.pgn-first-50000"`.
+- **B3 Chemistry:** `pingzhili/uspto-50k`, 49,015 reactions after `>>` filter. Tokenizer: `CharTokenizer` (vocab derived from data, 47 chars). Note: no `[BOS]`/`[EOS]` wrapping because CharTokenizer would split those into 5 tokens of bracket-noise — Phase 5 will introduce a tokenizer that supports special tokens. `dataset_key = "uspto-50k-49015-reactions"`.
 
 **Hardware:** single NVIDIA RTX A6000 (48 GiB), torch 2.8.0 + CUDA 12.8, Python 3.12, Ubuntu on `vai03`. See the `env.json` in each run dir for exact versions.
 
@@ -53,21 +53,21 @@ Each run was executed sequentially on the same GPU; no contention. B2's Lichess 
 
 Run directories (all under `runs/` and committed for reference, minus the checkpoints):
 
-- `runs/baseline-b1-tinystories/summary.json`
-- `runs/baseline-b2-chess/summary.json`
-- `runs/baseline-b3-chemistry/summary.json`
+- `runs/baseline-p1-b1-tinystories/summary.json`
+- `runs/baseline-p1-b2-chess/summary.json`
+- `runs/baseline-p1-b3-chemistry/summary.json`
 
-`uv run python scripts/compare.py --allow-contract-mismatch runs/baseline-*`:
+`uv run python scripts/compare.py --allow-contract-mismatch runs/baseline-p1-*`:
 
 ```
-| metric              | baseline-b1-tinystories | baseline-b2-chess | baseline-b3-chemistry |
-|---------------------|-------------------------|-------------------|-----------------------|
-| best_val_loss       | 2.2261                  | 2.1694            | 0.2772                |
-| best_val_step       | 5,000                   | 5,000             | 5,000                 |
-| tokens_per_sec      | 19,411.3                | 83,015.7          | 86,728.4              |
-| peak_vram_bytes     | 7,224,604,160           | 3,146,654,208     | 1,906,259,968         |
-| total_steps         | 5,000                   | 5,000             | 5,000                 |
-| total_wallclock_sec | 2,110.1                 | 493.4             | 472.3                 |
+| metric              | baseline-p1-b1-tinystories | baseline-p1-b2-chess | baseline-p1-b3-chemistry |
+|---------------------|----------------------------|----------------------|--------------------------|
+| best_val_loss       | 2.2261                     | 2.1694               | 0.2772                   |
+| best_val_step       | 5,000                      | 5,000                | 5,000                    |
+| tokens_per_sec      | 19,411.3                   | 83,015.7             | 86,728.4                 |
+| peak_vram_bytes     | 7,224,604,160              | 3,146,654,208        | 1,906,259,968            |
+| total_steps         | 5,000                      | 5,000                | 5,000                    |
+| total_wallclock_sec | 2,110.1                    | 493.4                | 472.3                    |
 ```
 
 The `--allow-contract-mismatch` flag was required because each run has a different `dataset_key`. This is the first and probably the only context where cross-dataset comparison is appropriate (documentation / overview); every Phase 2+ comparison will match on dataset_key and the flag won't be needed.
@@ -93,7 +93,7 @@ All three baselines trained without error, with stable loss trajectories (see `m
 
 ## Conclusion
 
-Baselines accepted. Committed to `runs/baseline-*/` as the immutable Phase 1 reference. Phase 2 will A/B against these.
+Baselines accepted. Originally committed to `runs/baseline-*/`; later canonicalized to `runs/baseline-p1-*` when generation-2 baselines were added.
 
 ## Open questions
 

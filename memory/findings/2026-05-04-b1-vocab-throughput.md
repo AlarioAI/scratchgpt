@@ -10,19 +10,19 @@ All three Phase 1 baselines use identical architecture: `embedding_size=384, num
 | benchmark | tokenizer (vocab size) | tokens/sec |
 |-----------|------------------------|------------|
 | B1 TinyStories | GPT-2 (50,257)      | 19,411     |
-| B2 Chess       | ChessTokenizer (~200) | 83,016   |
-| B3 Chemistry   | CharTokenizer (~60)  | 86,728    |
+| B2 Chess       | ChessTokenizer (12,341) | 83,016 |
+| B3 Chemistry   | CharTokenizer (47)      | 86,728 |
 
 B1 is ~4.3× slower per token than B2 and B3, despite identical transformer-block compute.
 
 ## Evidence
 
-- `runs/baseline-b1-tinystories/summary.json` — `tokens_per_sec: 19411.3`
-- `runs/baseline-b2-chess/summary.json` — `tokens_per_sec: 83015.7`
-- `runs/baseline-b3-chemistry/summary.json` — `tokens_per_sec: 86728.4`
+- `runs/baseline-p1-b1-tinystories/summary.json` — `tokens_per_sec: 19411.3`
+- `runs/baseline-p1-b2-chess/summary.json` — `tokens_per_sec: 83015.7`
+- `runs/baseline-p1-b3-chemistry/summary.json` — `tokens_per_sec: 86728.4`
 - B1 peak VRAM 7.22 GiB vs. B2 3.13 GiB vs. B3 1.91 GiB (`peak_vram_bytes` in each summary).
 
-The VRAM delta between B1 and B2 is ~4.1 GiB. B1 has 50257 × 384 × 4 bytes = 77 MiB more parameters in the lm_head compared to a hypothetical ~200-token-vocab version, *plus* the gradient (another 77 MiB) *plus* AdamW's first and second moment buffers (another 2 × 77 = 154 MiB) = ~308 MiB of extra state. The remaining ~3.8 GiB difference is activation memory, dominated by the `(B, T, V) = (32, 256, 50257)` logits tensor at ~1.6 GiB per copy in fp32 (and multiple copies exist in the autograd graph during backward).
+The VRAM delta between B1 and B2 is ~4.1 GiB. B1 has `(50257 - 12341) * 384 * 4` bytes = ~58 MiB more output-head parameters than B2, plus gradients and AdamW first/second moments for ~233 MiB of extra optimizer state. The remaining ~3.8 GiB difference is activation memory, dominated by the `(B, T, V) = (32, 256, 50257)` logits tensor at ~1.6 GiB per copy in fp32 (and multiple copies exist in the autograd graph during backward).
 
 ## Mechanism
 
@@ -30,7 +30,7 @@ Two compounding effects:
 
 1. **Output projection FLOPs.** The final `nn.Linear(embedding_size, vocab_size)` does `B*T*E*V` multiply-adds per forward pass. For B1 that's `32 * 256 * 384 * 50257 ≈ 1.58 × 10^11` FLOPs per step, dwarfing a single attention or FFN block (each ~`B*T*E*E*8 ≈ 9.6 × 10^8` FLOPs for attention, ~`B*T*E*E*8 ≈ 9.6 × 10^8` for the FFN expansion layers). Even with 6 blocks, the transformer body is ~`6 * 10^10` FLOPs, i.e. smaller than a single pass through the lm_head at B1's vocab size.
 
-2. **Softmax + cross-entropy over the same `(B*T, V)` logits tensor.** Softmax touches every one of 32 * 256 * 50257 = 411M logits per step. For B2/B3 with ~200/60 tokens, the same operation is 1.6M / 0.49M — essentially free.
+2. **Softmax + cross-entropy over the same `(B*T, V)` logits tensor.** Softmax touches every one of `32 * 256 * 50257 = 411M` logits per step. For B2/B3, the same operation is `32 * 256 * 12341 = 101M` logits and `32 * 256 * 47 = 0.39M` logits. B2 is not free, but B1 still pushes roughly 4.1x more output classes through the final projection and loss than B2.
 
 The lm_head is a shallow but extremely wide operation that a six-layer transformer can't amortize away.
 

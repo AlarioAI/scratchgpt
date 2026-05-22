@@ -21,4 +21,19 @@ Append-only chronological index of memory entries. Newest at the bottom.
 2026-05-14  phases/2026-05-14-phase2-tier1.md                   Phase 2 retrospective: accepted attention-scale, GELU, GPT-2 init; rejected tying/no-bias/full-stack defaults
 2026-05-14  decisions/2026-05-14-phase2-defaults.md             Final Phase 2 architecture defaults for generation-2 baselines and future comparisons
 2026-05-14  experiments/2026-05-14-phase2-baselines.md          Generation-2 canonical baselines after accepted Phase 2 defaults
+2026-05-21  decisions/2026-05-21-phase3a-benchmark-refresh.md   Phase 3a benchmark refresh starts with B4 FineWeb-Edu 100M sample
+2026-05-21  experiments/2026-05-21-phase3a-b4-fineweb-edu-baseline.md  B4 FineWeb-Edu 100M generation-3a baseline accepted
+2026-05-21  decisions/2026-05-21-modern-model-path.md           Phase 4 ablations use model_variant=modern in a parallel model path
+2026-05-21  experiments/2026-05-21-phase4-exp1-rope-b4.md       Phase 4 Exp-1: RoPE accepted as modern-path candidate on B4 (-2.71% val loss, -7.36% throughput)
+2026-05-21  experiments/2026-05-21-phase4-exp2-rmsnorm-b4.md    Phase 4 Exp-2: RMSNorm not accepted standalone on B4 (+0.15% val loss, -3.15% throughput)
+2026-05-21  experiments/2026-05-21-phase4-exp3-swiglu-b4.md     Phase 4 Exp-3: parameter-matched SwiGLU accepted as modern-path candidate on B4 (-0.80% val loss, -2.50% throughput)
+2026-05-21  experiments/2026-05-21-phase4-exp4-qk-norm-b4.md    Phase 4 Exp-4: QK-norm accepted as modern-path candidate on B4 (-0.56% val loss, -6.31% throughput)
+2026-05-21  decisions/2026-05-21-phase4-stack-order.md          Phase 4 stack order: run RoPE + parameter-matched SwiGLU next on B4
+2026-05-21  experiments/2026-05-21-phase4-exp5-rope-swiglu-b4.md  Phase 4 Exp-5: RoPE + SwiGLU accepted as leading B4 stack (-3.02% val loss, -8.62% throughput)
+2026-05-21  decisions/2026-05-21-phase4-post-exp5-branch.md     Phase 4 branch: run RoPE + QK-norm next before a triple stack
+2026-05-21  experiments/2026-05-21-phase4-exp6-rope-qk-norm-b4.md  Phase 4 Exp-6: RoPE + QK-norm becomes best B4 quality stack (-3.30% val loss, -12.46% throughput)
+2026-05-21  decisions/2026-05-21-phase4-post-exp6-branch.md     Phase 4 branch: run RoPE + SwiGLU + QK-norm next on B4
+2026-05-21  experiments/2026-05-21-phase4-exp7-rope-swiglu-qk-norm-b4.md  Phase 4 Exp-7 setup: full RoPE + SwiGLU + QK-norm stack on B4
+2026-05-21  experiments/2026-05-21-phase4-exp7-rope-swiglu-qk-norm-b4.md  Phase 4 Exp-7: full RoPE + SwiGLU + QK-norm accepted as leading B4 quality stack (-4.25% val loss, -13.69% throughput vs baseline)
+2026-05-21  decisions/2026-05-21-phase4-full-stack-next.md      Phase 4 decision: repeat full-stack B4 before B1/B2/B3 transfer checks
 ```

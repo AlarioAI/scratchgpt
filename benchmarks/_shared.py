@@ -1,15 +1,17 @@
 """Shared wiring for Phase 1 baseline benchmarks."""
 import hashlib
 import os
+from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any
 
 import torch
+from datasets import Dataset as HFDataset
 from torch.optim import AdamW
 
 from scratchgpt.config import ScratchGPTArchitecture, ScratchGPTConfig, ScratchGPTTraining
 from scratchgpt.data.datasource import DataSource
-from scratchgpt.model.model import TransformerLanguageModel
+from scratchgpt.model.factory import build_language_model
 from scratchgpt.tokenizer.base_tokenizer import Tokenizer
 from scratchgpt.training.determinism import seed_everything
 from scratchgpt.training.run_recorder import RunRecorder
@@ -59,7 +61,7 @@ def run_benchmark(
     """Train and write a run directory; stamps dataset_key on the trainer so
     the benchmark_contract in summary.json identifies the exact data subset."""
     seed_everything(config.training.random_seed)
-    model = TransformerLanguageModel(config).to(device)
+    model = build_language_model(config).to(device)
     optimizer = AdamW(model.parameters(), lr=config.training.learning_rate)
 
     recorder = RunRecorder(base_dir=runs_dir, run_slug=slug)
@@ -100,6 +102,45 @@ def parse_arch_overrides(raw: list[str] | None) -> dict[str, Any]:
             parsed = value
         overrides[key] = parsed
     return overrides
+
+
+def materialize_text_dataset(
+    examples: Iterable[Mapping[str, Any]],
+    *,
+    text_column: str,
+    limit: int,
+    min_chars: int = 1,
+    max_chars: int | None = None,
+) -> HFDataset:
+    """Build a finite text Dataset from an iterable source.
+
+    Materializing a fixed prefix gives benchmark scripts a deterministic subset
+    that can flow through the existing HFDataSource train/val split path.
+    """
+    if limit <= 0:
+        raise ValueError("limit must be positive")
+    if min_chars < 0:
+        raise ValueError("min_chars must be non-negative")
+    if max_chars is not None and max_chars <= 0:
+        raise ValueError("max_chars must be positive when provided")
+
+    texts: list[str] = []
+    for example in examples:
+        raw = example.get(text_column)
+        if not isinstance(raw, str):
+            continue
+        text = raw.strip()
+        if len(text) < min_chars:
+            continue
+        if max_chars is not None:
+            text = text[:max_chars]
+        texts.append(text)
+        if len(texts) >= limit:
+            break
+
+    if not texts:
+        raise ValueError(f"No usable text examples found in column {text_column!r}")
+    return HFDataset.from_dict({text_column: texts})
 
 
 def cached_chess_corpus(game_url: str, max_games: int) -> str:

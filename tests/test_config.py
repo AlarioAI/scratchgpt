@@ -27,6 +27,13 @@ def test_training_rejects_zero_eval_every() -> None:
 
 def test_architecture_defaults_reflect_phase2_decisions() -> None:
     arch = ScratchGPTArchitecture(vocab_size=256)
+    # Phase 3a keeps the pedagogical model implementation as the default;
+    # modern ablations run through the explicit parallel path.
+    assert arch.model_variant == "classic"
+    assert arch.position_encoding == "learned"
+    assert arch.normalization == "layernorm"
+    assert arch.ffn_variant == "mlp"
+    assert arch.qk_norm is False
     # Phase 2 Exp-1 flipped attention_scale_mode default to "head".
     # Phase 2 Exp-2 flipped ffn_activation default to "gelu".
     # Phase 2 Exp-3 rejected tie_weights=True as standalone (kept False).
@@ -44,12 +51,22 @@ def test_architecture_defaults_reflect_phase2_decisions() -> None:
 def test_architecture_accepts_phase2_improvements() -> None:
     arch = ScratchGPTArchitecture(
         vocab_size=256,
+        model_variant="modern",
+        position_encoding="rope",
+        normalization="rmsnorm",
+        ffn_variant="swiglu",
+        qk_norm=True,
         attention_scale_mode="head",
         ffn_activation="gelu",
         tie_weights=True,
         init_scheme="gpt2",
         use_bias=False,
     )
+    assert arch.model_variant == "modern"
+    assert arch.position_encoding == "rope"
+    assert arch.normalization == "rmsnorm"
+    assert arch.ffn_variant == "swiglu"
+    assert arch.qk_norm is True
     assert arch.attention_scale_mode == "head"
     assert arch.ffn_activation == "gelu"
     assert arch.tie_weights is True
@@ -65,3 +82,34 @@ def test_architecture_rejects_invalid_attention_scale_mode() -> None:
 def test_architecture_rejects_invalid_activation() -> None:
     with pytest.raises(ValueError):
         ScratchGPTArchitecture(vocab_size=256, ffn_activation="swiglu")  # Phase 4, not here
+
+
+def test_architecture_rejects_invalid_model_variant() -> None:
+    with pytest.raises(ValueError):
+        ScratchGPTArchitecture(vocab_size=256, model_variant="experimental")
+
+
+def test_architecture_rejects_invalid_position_encoding() -> None:
+    with pytest.raises(ValueError):
+        ScratchGPTArchitecture(vocab_size=256, position_encoding="sinusoidal")
+
+
+def test_architecture_rejects_invalid_normalization() -> None:
+    with pytest.raises(ValueError):
+        ScratchGPTArchitecture(vocab_size=256, normalization="batchnorm")
+
+
+def test_architecture_rejects_invalid_ffn_variant() -> None:
+    with pytest.raises(ValueError):
+        ScratchGPTArchitecture(vocab_size=256, ffn_variant="moe")
+
+
+def test_rope_requires_even_head_size() -> None:
+    with pytest.raises(ValueError, match="RoPE requires an even per-head dimension"):
+        ScratchGPTArchitecture(
+            vocab_size=256,
+            model_variant="modern",
+            position_encoding="rope",
+            embedding_size=30,
+            num_heads=2,
+        )

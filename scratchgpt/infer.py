@@ -8,7 +8,7 @@ from rich.pretty import pprint as rpprint
 
 from scratchgpt.config import ScratchGPTConfig
 
-from .model.model import TransformerLanguageModel
+from .model.factory import build_language_model
 from .model_io import get_best_model_weights_path, load_model, load_tokenizer
 
 
@@ -53,9 +53,7 @@ def main() -> None:
     device = torch.device(args.device)
     best_model_path = get_best_model_weights_path(args.experiment)
 
-    model = TransformerLanguageModel(
-        config=config,
-    )
+    model = build_language_model(config=config)
     load_model(best_model_path, model, device)
 
     while True:

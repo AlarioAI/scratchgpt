@@ -12,7 +12,7 @@ import torch
 from torch.nn import functional as F
 
 from scratchgpt.config import ScratchGPTArchitecture, ScratchGPTConfig, ScratchGPTTraining
-from scratchgpt.model.model import TransformerLanguageModel
+from scratchgpt.model.factory import build_language_model
 
 
 def parse_args() -> argparse.Namespace:
@@ -26,6 +26,11 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--iters", type=int, default=20)
     p.add_argument("--warmup", type=int, default=3)
     p.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
+    p.add_argument("--model-variant", choices=["classic", "modern"], default="classic")
+    p.add_argument("--position-encoding", choices=["learned", "rope"], default="learned")
+    p.add_argument("--normalization", choices=["layernorm", "rmsnorm"], default="layernorm")
+    p.add_argument("--ffn-variant", choices=["mlp", "swiglu"], default="mlp")
+    p.add_argument("--qk-norm", action="store_true")
     return p.parse_args()
 
 
@@ -36,9 +41,14 @@ def main() -> None:
     arch = ScratchGPTArchitecture(
         block_size=args.block_size, embedding_size=args.embedding_size,
         num_heads=args.num_heads, num_blocks=args.num_blocks, vocab_size=args.vocab_size,
+        model_variant=args.model_variant,
+        position_encoding=args.position_encoding,
+        normalization=args.normalization,
+        ffn_variant=args.ffn_variant,
+        qk_norm=args.qk_norm,
     )
     training = ScratchGPTTraining(batch_size=args.batch_size)
-    model = TransformerLanguageModel(ScratchGPTConfig(architecture=arch, training=training)).to(device)
+    model = build_language_model(ScratchGPTConfig(architecture=arch, training=training)).to(device)
     model.train()
 
     x = torch.randint(0, args.vocab_size, (args.batch_size, args.block_size), device=device)

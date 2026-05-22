@@ -48,6 +48,34 @@ class ScratchGPTArchitecture(BaseSettings):
     num_blocks: int = 6
     vocab_size: int | None = None
 
+    model_variant: Literal["classic", "modern"] = "classic"
+    """
+    Architecture implementation path. 'classic' keeps the pedagogical
+    scratchgpt/model/model.py implementation. 'modern' is the parallel research
+    path for Phase 4+ ablations.
+    """
+
+    position_encoding: Literal["learned", "rope"] = "learned"
+    """
+    Position encoding strategy. 'learned' is the classic GPT-style learned
+    embedding table. 'rope' is available on the modern model path.
+    """
+
+    normalization: Literal["layernorm", "rmsnorm"] = "layernorm"
+    """
+    Residual-stream normalization. 'layernorm' preserves the pedagogical
+    baseline. 'rmsnorm' is available on the modern model path.
+    """
+
+    ffn_variant: Literal["mlp", "swiglu"] = "mlp"
+    """
+    Feed-forward block type. 'mlp' is the classic two-layer FFN. 'swiglu' is
+    available on the modern model path.
+    """
+
+    qk_norm: bool = False
+    """Apply per-head RMSNorm to query and key vectors on the modern model path."""
+
     # --- Phase 2 flags. Defaults preserve Phase 1 baseline numerics. ---
     attention_scale_mode: Literal["embedding", "head"] = "head"
     """
@@ -83,6 +111,9 @@ class ScratchGPTArchitecture(BaseSettings):
                 f"Incompatible model architecture: embedding_size ({self.embedding_size}) "
                 f"must be divisible by num_heads ({self.num_heads})."
             )
+        head_size = self.embedding_size // self.num_heads
+        if self.position_encoding == "rope" and head_size % 2 != 0:
+            raise ValueError("RoPE requires an even per-head dimension")
         return self
 
     def make_activation(self) -> nn.Module:

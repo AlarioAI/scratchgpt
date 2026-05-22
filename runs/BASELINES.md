@@ -32,11 +32,14 @@ Shared architecture size: `embedding_size=384`, `num_heads=6`, `num_blocks=6`.
 | tie_weights          | false  |
 | use_bias             | true   |
 
+**Generation 3a (`baseline-p3a-*`)** adds the first refreshed benchmark for model-first work. It keeps the accepted Phase 2 model defaults and adds B4 FineWeb-Edu 100M as a stronger general-text benchmark.
+
 ## Benchmarks
 
 - **B1 TinyStories:** `roneneldan/TinyStories`, first 500,000 rows. Tokenizer: GPT-2, vocab 50,257. `dataset_key = tinystories-500000-rows`.
 - **B2 Chess:** Lichess standard-rated 2016-02, first 50,000 parsed games. Tokenizer: `ChessTokenizer`, vocab 12,341. `dataset_key = lichess-lichess_db_standard_rated_2016-02.pgn-first-50000`.
 - **B3 Chemistry:** `pingzhili/uspto-50k`, 49,015 valid reactions after `>>` filtering. Tokenizer: `CharTokenizer`, vocab 47. `dataset_key = uspto-50k-49015-reactions`.
+- **B4 FineWeb-Edu 100M:** `codelion/fineweb-edu-100M`, first 100,000 usable documents after `min_chars=200` and `max_chars=8192`. Tokenizer: GPT-2, vocab 50,257. `dataset_key = codelion-fineweb-edu-100m-first-100000-docs-min-200-max-8192-chars`.
 
 ## Hardware
 
@@ -46,6 +49,7 @@ See each run's `env.json` for exact versions.
 |------------|-----|---------|------|--------|
 | P1 | NVIDIA RTX A6000 | 2.8.0 | 12.8 | 3.12.7 |
 | P2 | NVIDIA GeForce RTX 5090 | 2.8.0 | 12.8 | 3.12.9 |
+| P3a | NVIDIA RTX A6000 | 2.8.0 | 12.8 | 3.12.7 |
 
 ## Generation 1 numbers
 
@@ -98,3 +102,22 @@ Same-dataset comparisons:
 | B3 Chemistry | 0.2772 | 0.2515 | -0.0257 | -9.27% |
 
 The throughput numbers are not a clean algorithmic comparison because P1 and P2 were run on different GPUs. For algorithmic claims, use loss deltas within the same benchmark generation and record the run hardware in `memory/experiments/`.
+
+## Generation 3a numbers
+
+Output of:
+
+```bash
+uv run python scripts/compare.py runs/baseline-p3a-b4-fineweb-edu-100m
+```
+
+| metric | baseline-p3a-b4-fineweb-edu-100m |
+|---|---|
+| best_val_loss | 4.7369 |
+| best_val_step | 5,000 |
+| tokens_per_sec | 24,094.6 |
+| peak_vram_bytes | 7,524,103,680 |
+| total_steps | 5,000 |
+| total_wallclock_sec | 1,700.0 |
+
+B4 starts a new benchmark axis. Do not compare its loss directly to B1/B2/B3; use it as the same-dataset reference for Phase 4 dense decoder ablations.

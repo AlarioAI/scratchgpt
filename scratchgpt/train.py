@@ -7,7 +7,7 @@ from torch.optim import AdamW
 
 from scratchgpt.config import ScratchGPTConfig
 from scratchgpt.data import create_data_source
-from scratchgpt.model.model import TransformerLanguageModel
+from scratchgpt.model.factory import build_language_model
 from scratchgpt.model_io import load_model, save_tokenizer
 from scratchgpt.tokenizer.hf_tokenizer import HuggingFaceTokenizer
 from scratchgpt.training.trainer import Trainer
@@ -102,7 +102,7 @@ def main() -> None:
     # 4. Set up the model and optimizer
     device = torch.device(args.device)
     print(f"Using device: {device}")
-    model = TransformerLanguageModel(config)
+    model = build_language_model(config)
 
     best_model_path = args.experiment / "best_model_weights.pth"
     model = load_model(best_model_path, model, device)
